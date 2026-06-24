@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<!--
+  Recession-risk dashboard (Phase 6). SELF-CONTAINED: all data is embedded below and
+  all charts are drawn with inline SVG - no internet, no external libraries.
+  Regenerate by running build_dashboard_data.py (it injects the data and writes this file
+  to output/dashboard.html).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>US Recession Risk — Yield-Curve Model</title>
+<style>
+  :root{
+    --ink:#16213e; --muted:#5b6478; --line:#e3e6ee; --bg:#ffffff; --panel:#f7f8fb;
+    --blue:#2563eb; --grayline:#aab2c5; --band:#dfe3ec;
+    --green:#16a34a; --amber:#e08a00; --red:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 22px 60px}
+  h1{font-size:24px;margin:0 0 2px}
+  .sub{color:var(--muted);margin:0 0 22px}
+  .grid{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:stretch}
+  @media(max-width:780px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .card h2{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center}
+  .gauge-num{font-size:46px;font-weight:700;margin-top:-8px}
+  .gauge-lbl{color:var(--muted);font-size:12.5px;text-align:center;margin-top:2px}
+  .banner{border-radius:12px;padding:14px 16px;font-weight:600;margin-bottom:14px;border:1px solid}
+  .banner small{display:block;font-weight:400;margin-top:4px;line-height:1.45}
+  .b-clear{background:#eafaf0;border-color:#bfe9cf;color:#10632f}
+  .b-nocc {background:#fff5e6;border-color:#ffd9a3;color:#8a4b00}
+  .b-warn {background:#fdecec;border-color:#f6bcbc;color:#a01818}
+  .lights{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:520px){.lights{grid-template-columns:1fr}}
+  .light{display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--line);
+         border-radius:10px;padding:10px 12px}
+  .dot{width:12px;height:12px;border-radius:50%;margin-top:4px;flex:0 0 auto}
+  .light .nm{font-weight:600;font-size:13.5px}
+  .light .vl{color:var(--ink);font-size:13px}
+  .light .th{color:var(--muted);font-size:11.5px}
+  .chart-card{margin-top:22px}
+  .legend{display:flex;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:12.5px;margin-top:8px}
+  .legend i{display:inline-block;width:22px;height:0;vertical-align:middle;margin-right:6px}
+  .note{color:var(--muted);font-size:12.5px;margin-top:18px;line-height:1.55}
+  svg{display:block;width:100%;height:auto}
+  text{fill:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>US Recession Risk — Yield-Curve Model</h1>
+  <p class="sub" id="asof"></p>
+
+  <div class="grid">
+    <!-- LEFT: headline probability gauge -->
+    <div class="card gauge-wrap">
+      <h2>Recession probability (12 months)</h2>
+      <svg id="gauge" viewBox="0 0 240 150" aria-label="probability gauge"></svg>
+      <div class="gauge-num" id="gaugeNum"></div>
+      <div class="gauge-lbl" id="gaugeLbl"></div>
+    </div>
+
+    <!-- RIGHT: character banner + fragility lights -->
+    <div class="card">
+      <h2>Character of the risk</h2>
+      <div id="banner" class="banner"></div>
+      <h2>Fragility signals (values vs judgment-call thresholds)</h2>
+      <div class="lights" id="lights"></div>
+    </div>
+  </div>
+
+  <!-- TRAJECTORY -->
+  <div class="card chart-card">
+    <h2>Model probability over time — recessions shaded</h2>
+    <svg id="chart" viewBox="0 0 1000 430" aria-label="trajectory chart"></svg>
+    <div class="legend">
+      <span><i style="border-top:3px solid var(--blue)"></i>Real-time (expanding-window) — the honest track record</span>
+      <span><i style="border-top:2px dashed var(--grayline)"></i>Fitted (uses all data) — flattering reference</span>
+      <span><i style="border-top:12px solid var(--band);height:0"></i>NBER recession</span>
+    </div>
+    <p class="note" id="chartnote"></p>
+  </div>
+
+  <p class="note">
+    <b>How to read this.</b> The big number is the probability engine: a probit on the 10-year
+    minus 3-month Treasury spread alone (the Estrella-Mishkin / NY Fed standard). The fragility
+    signals do <b>not</b> change that probability — they grade the <i>character</i> of the risk
+    (is a 2008-style credit-cycle collapse brewing?). An inverted curve always warns through the
+    probability; the model never declares a "false alarm." Thresholds shown are documented
+    judgment calls, not fitted parameters. The two lines on the chart are the point: the rosy
+    <i>fitted</i> line has seen all history; the prominent <i>real-time</i> line shows what the
+    model would actually have said month by month — its AUC is the honest headline.
+  </p>
+</div>
+
+<script>
+const DATA = __DASHBOARD_DATA__;
+
+/* ---------- header ---------- */
+document.getElementById('asof').textContent =
+  'As of ' + DATA.as_of + ' · headline performance: real-time AUC ' + DATA.auc.realtime +
+  ' over ' + DATA.auc.onsets + ' recession onsets (' + DATA.auc.rt_start + '–' + DATA.auc.rt_end +
+  ')  ·  in-sample AUC ' + DATA.auc.insample + ' for contrast';
+
+/* ---------- gauge (semicircle) ---------- */
+(function(){
+  const p = DATA.gauge.probability;
+  const cx=120, cy=130, r=95;
+  const col = p<25?'var(--green)': p<50?'var(--amber)':'var(--red)';
+  const ang = Math.PI*(1 - p/100);                 // 180deg (0%) -> 0deg (100%)
+  const pol = a => [cx + r*Math.cos(a), cy - r*Math.sin(a)];
+  const arc = (a0,a1,color,w)=>{
+    const [x0,y0]=pol(a0), [x1,y1]=pol(a1);
+    const large = (a0-a1) > Math.PI ? 1 : 0;
+    return `<path d="M${x0} ${y0} A${r} ${r} 0 ${large} 1 ${x1} ${y1}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`;
+  };
+  const [nx,ny]=pol(ang);
+  let svg = arc(Math.PI,0,'#e7eaf1',16) + arc(Math.PI,ang,col,16);
+  svg += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="3"/>`;
+  svg += `<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/>`;
+  svg += `<text x="20" y="145" font-size="11" fill="var(--muted)">0%</text>`;
+  svg += `<text x="205" y="145" font-size="11" fill="var(--muted)">100%</text>`;
+  document.getElementById('gauge').innerHTML = svg;
+  document.getElementById('gaugeNum').textContent = p + '%';
+  document.getElementById('gaugeNum').style.color = col;
+  document.getElementById('gaugeLbl').textContent = DATA.gauge.label;
+})();
+
+/* ---------- character banner ---------- */
+(function(){
+  const b = document.getElementById('banner');
+  b.className = 'banner ' + (DATA.character.class==='warn'?'b-warn':DATA.character.class==='nocc'?'b-nocc':'b-clear');
+  b.innerHTML = DATA.character.short + '<small>' + DATA.character.full + '</small>';
+})();
+
+/* ---------- fragility lights ---------- */
+(function(){
+  const host = document.getElementById('lights');
+  host.innerHTML = DATA.lights.map(L=>{
+    const col = L.on ? 'var(--red)' : 'var(--green)';
+    return `<div class="light"><span class="dot" style="background:${col}"></span>
+      <div><div class="nm">${L.name}</div><div class="vl">${L.value}</div>
+      <div class="th">${L.threshold}</div></div></div>`;
+  }).join('');
+})();
+
+/* ---------- trajectory chart ---------- */
+(function(){
+  const W=1000,H=430, m={t:18,r:16,b:34,l:42};
+  const pw=W-m.l-m.r, ph=H-m.t-m.b;
+  const d=DATA.series.dates, N=d.length;
+  const x=i=> m.l + (N<2?0:(i/(N-1))*pw);
+  const y=v=> m.t + (1 - v/100)*ph;
+  const idx={}; d.forEach((s,i)=>idx[s]=i);
+  let s='';
+
+  // recession shaded bands
+  DATA.recessions.forEach(rc=>{
+    let a=idx[rc.start], b=idx[rc.end];
+    if(a===undefined && b===undefined) return;
+    if(a===undefined) a=0; if(b===undefined) b=N-1;
+    s += `<rect x="${x(a)}" y="${m.t}" width="${Math.max(1,x(b)-x(a))}" height="${ph}" fill="var(--band)"/>`;
+  });
+
+  // y gridlines + labels
+  [0,25,50,75,100].forEach(v=>{
+    s += `<line x1="${m.l}" y1="${y(v)}" x2="${W-m.r}" y2="${y(v)}" stroke="var(--line)"/>`;
+    s += `<text x="${m.l-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${v}%</text>`;
+  });
+
+  // x year ticks (every decade)
+  let lastDec=null;
+  d.forEach((str,i)=>{
+    const yr=+str.slice(0,4);
+    if(yr%10===0 && str.slice(5)==='01' && yr!==lastDec){
+      lastDec=yr;
+      s += `<line x1="${x(i)}" y1="${m.t}" x2="${x(i)}" y2="${m.t+ph}" stroke="var(--line)"/>`;
+      s += `<text x="${x(i)}" y="${H-12}" text-anchor="middle" font-size="11" fill="var(--muted)">${yr}</text>`;
+    }
+  });
+
+  // helper to build a polyline path, breaking on nulls
+  const path=(arr)=>{
+    let dstr='', pen=false;
+    arr.forEach((v,i)=>{ if(v===null){pen=false; return;}
+      dstr += (pen?'L':'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' '; pen=true; });
+    return dstr;
+  };
+
+  // fitted (light dashed reference)
+  s += `<path d="${path(DATA.series.fitted)}" fill="none" stroke="var(--grayline)"
+         stroke-width="1.6" stroke-dasharray="5 4" opacity="0.9"/>`;
+  // real-time (prominent solid)
+  s += `<path d="${path(DATA.series.realtime)}" fill="none" stroke="var(--blue)" stroke-width="2.4"/>`;
+
+  document.getElementById('chart').innerHTML = s;
+  document.getElementById('chartnote').textContent =
+    'Both lines show the probability of a recession 12 months ahead, dated at the forecast month, '
+    + 'so the line should rise before a shaded recession. The gap between the rosy fitted line and '
+    + 'the bumpier real-time line is exactly how much "knowing the future" flatters a backtest.';
+})();
+</script>
+</body>
+</html>
