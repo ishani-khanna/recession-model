@@ -47,6 +47,8 @@ MONTHLY_SERIES = {
     "CPIAUCSL":  "cpi",        # Consumer Price Index (for deflating house prices)
     "CSUSHPINSA":"hpi",        # Case-Shiller national house price index (nominal)
     "UNRATE":    "unrate",     # Unemployment rate (%)
+    "LNU01073395":"foreign_born",  # Foreign-born civilian labor force (thousands, from 2007)
+    "JTSJOL":    "job_openings",   # Total nonfarm job openings, JOLTS (thousands, from 2000)
 }
 
 # These come out quarterly; we will interpolate them to monthly.
@@ -56,6 +58,7 @@ QUARTERLY_SERIES = {
     "GDP":       "gdp",        # Gross domestic product
     "BCNSDODNS": "corp_debt",  # Nonfinancial corporate business debt
     "DRTSCILM":  "sloos",      # Sr Loan Officer Survey: net % banks tightening C&I loans
+    "TDSP":      "tdsp",       # Household debt-service ratio (% of disposable income, from 2005)
 }
 
 # ---------------------------------------------------------------------------
