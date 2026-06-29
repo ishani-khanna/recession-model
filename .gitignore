@@ -5,3 +5,4 @@ data/*.csv
 output/
 .claude/
 .DS_Store
+Recession_Episodes_Real_FRED_Data.xlsx

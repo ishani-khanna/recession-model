@@ -48,6 +48,30 @@
   .note{color:var(--muted);font-size:12.5px;margin-top:18px;line-height:1.55}
   svg{display:block;width:100%;height:auto}
   text{fill:var(--ink)}
+  /* ---- scenario lab ---- */
+  .lab{margin-top:22px}
+  .lab h3{font-size:14px;margin:18px 0 10px}
+  .lab-models{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .mbtn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 12px;cursor:pointer;
+        font:inherit;font-size:13px;color:var(--ink);transition:all .12s}
+  .mbtn small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+  .mbtn.active{border-color:var(--blue);background:#eef3ff;color:var(--blue);font-weight:600}
+  .mbtn.active small{color:var(--blue)}
+  .lab-grid{display:grid;grid-template-columns:1fr 300px;gap:22px;align-items:start;margin-top:8px}
+  @media(max-width:780px){.lab-grid{grid-template-columns:1fr}}
+  .sld{margin:9px 0}
+  .sld label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px}
+  .sld label b{font-variant-numeric:tabular-nums}
+  .sld input[type=range]{width:100%}
+  .frag-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 22px}
+  @media(max-width:560px){.frag-grid{grid-template-columns:1fr}}
+  .spreadbox{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:13px}
+  .spreadbox span{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+  .spreadbox b{font-variant-numeric:tabular-nums}
+  .resembles{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .resembles b{font-size:15px}
+  .lab-gauge-num{font-size:34px;font-weight:700;text-align:center;margin-top:-6px}
+  .warnlabel{font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -83,6 +107,38 @@
       <span><i style="border-top:12px solid var(--band);height:0"></i>NBER recession</span>
     </div>
     <p class="note" id="chartnote"></p>
+  </div>
+
+  <!-- SCENARIO LAB (Phase 6B) -->
+  <div class="card lab">
+    <h2>Scenario lab — build your own curve and economy</h2>
+    <p class="note" style="margin-top:0">
+      Pick a model, then drag the four yields to reshape the curve and watch the probability
+      respond live. Then drag the fragility inputs: they change the <b>character</b> of the risk,
+      <b>not</b> the probability — that separation is the whole thesis.
+    </p>
+
+    <div class="lab-models" id="labModels"></div>
+
+    <div class="lab-grid">
+      <div>
+        <h3>The yield curve — drag the short end up (Fed tightening) or the long end down</h3>
+        <svg id="curveSvg" viewBox="0 0 520 220" aria-label="yield curve"></svg>
+        <div id="yieldSliders"></div>
+        <div class="spreadbox" id="spreadbox"></div>
+      </div>
+      <div>
+        <h3>Scenario probability</h3>
+        <svg id="labGauge" viewBox="0 0 240 150" aria-label="scenario gauge"></svg>
+        <div class="lab-gauge-num" id="labGaugeNum"></div>
+        <div id="labBanner" class="banner" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <h3>Fragility inputs — these flip the character, never the probability</h3>
+    <div class="frag-grid" id="fragSliders"></div>
+
+    <div class="resembles" id="resembles"></div>
   </div>
 
   <p class="note">
@@ -202,6 +258,152 @@ document.getElementById('asof').textContent =
     'Both lines show the probability of a recession 12 months ahead, dated at the forecast month, '
     + 'so the line should rise before a shaded recession. The gap between the rosy fitted line and '
     + 'the bumpier real-time line is exactly how much "knowing the future" flatters a backtest.';
+})();
+
+/* ====================== SCENARIO LAB (Phase 6B) ====================== */
+(function(){
+  const LAB = DATA.lab;
+  let selected = '10y-3m';                       // default model (rule 7)
+
+  /* standard-normal CDF via an erf approximation (no library) */
+  function erf(x){
+    const s=Math.sign(x); x=Math.abs(x);
+    const t=1/(1+0.3275911*x);
+    const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);
+    return s*y;
+  }
+  const normCdf = z => 0.5*(1+erf(z/Math.SQRT2));
+
+  /* ---- model selector buttons ---- */
+  const mhost=document.getElementById('labModels');
+  mhost.innerHTML = Object.entries(LAB.models).map(([k,m])=>
+    `<button class="mbtn${k===selected?' active':''}" data-m="${k}">${k}
+      <small>OOS AUC ${m.oos_auc} · ${m.onsets} onsets</small></button>`).join('');
+  mhost.querySelectorAll('.mbtn').forEach(b=>b.onclick=()=>{
+    selected=b.dataset.m;
+    mhost.querySelectorAll('.mbtn').forEach(x=>x.classList.toggle('active',x.dataset.m===selected));
+    recompute();
+  });
+
+  /* ---- four yield sliders ---- */
+  const Y=[['fedfunds','Fed funds'],['y3m','3-month'],['y2','2-year'],['y10','10-year']];
+  document.getElementById('yieldSliders').innerHTML = Y.map(([k,lab])=>{
+    const v=LAB.curve_defaults[k];
+    return `<div class="sld"><label>${lab} yield <b id="lbl_${k}">${v.toFixed(2)}%</b></label>
+      <input type="range" id="sl_${k}" min="0" max="18" step="0.01" value="${v}"></div>`;
+  }).join('');
+
+  /* ---- fragility sliders ---- */
+  const F=LAB.fragility;
+  document.getElementById('fragSliders').innerHTML = Object.entries(F).map(([k,f])=>{
+    const step=(f.max-f.min)/200;
+    return `<div class="sld"><label>${f.label} <b id="lbl_${k}">${f.value}</b></label>
+      <input type="range" id="sl_${k}" min="${f.min}" max="${f.max}" step="${step}" value="${f.value}"></div>`;
+  }).join('');
+
+  /* wire every slider to recompute */
+  document.querySelectorAll('#yieldSliders input, #fragSliders input').forEach(i=>i.oninput=recompute);
+
+  const val = id => parseFloat(document.getElementById('sl_'+id).value);
+
+  /* ---- gauge drawer (shared shape with the headline gauge) ---- */
+  function drawGauge(p){
+    const cx=120,cy=130,r=95;
+    const col=p<25?'var(--green)':p<50?'var(--amber)':'var(--red)';
+    const ang=Math.PI*(1-p/100), pol=a=>[cx+r*Math.cos(a),cy-r*Math.sin(a)];
+    const arc=(a0,a1,c,w)=>{const[x0,y0]=pol(a0),[x1,y1]=pol(a1);const lg=(a0-a1)>Math.PI?1:0;
+      return `<path d="M${x0} ${y0} A${r} ${r} 0 ${lg} 1 ${x1} ${y1}" fill="none" stroke="${c}" stroke-width="16" stroke-linecap="round"/>`;};
+    const[nx,ny]=pol(ang);
+    document.getElementById('labGauge').innerHTML =
+      arc(Math.PI,0,'#e7eaf1',16)+arc(Math.PI,ang,col,16)
+      +`<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="3"/>`
+      +`<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/>`;
+    const n=document.getElementById('labGaugeNum'); n.textContent=p.toFixed(1)+'%'; n.style.color=col;
+  }
+
+  /* ---- yield-curve drawing (yield vs maturity) ---- */
+  function drawCurve(yf,y3,y2,y10){
+    const W=520,H=220,m={t:14,r:16,b:30,l:34}, pw=W-m.l-m.r, ph=H-m.t-m.b;
+    const pts=[['o/n',yf],['3m',y3],['2y',y2],['10y',y10]];
+    const ymax=Math.max(6,Math.ceil(Math.max(yf,y3,y2,y10)+1));
+    const x=i=>m.l+(i/(pts.length-1))*pw, y=v=>m.t+(1-v/ymax)*ph;
+    let s='';
+    for(let g=0;g<=ymax;g+=Math.ceil(ymax/6)){
+      s+=`<line x1="${m.l}" y1="${y(g)}" x2="${W-m.r}" y2="${y(g)}" stroke="var(--line)"/>`;
+      s+=`<text x="${m.l-6}" y="${y(g)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${g}%</text>`;
+    }
+    pts.forEach((p,i)=>s+=`<text x="${x(i)}" y="${H-10}" text-anchor="middle" font-size="11" fill="var(--muted)">${p[0]}</text>`);
+    const inverted=y10<y3;
+    const line=pts.map((p,i)=>`${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');
+    s+=`<polyline points="${line}" fill="none" stroke="${inverted?'var(--red)':'var(--blue)'}" stroke-width="2.5"/>`;
+    pts.forEach((p,i)=>s+=`<circle cx="${x(i)}" cy="${y(p[1])}" r="4" fill="${inverted?'var(--red)':'var(--blue)'}"/>`);
+    document.getElementById('curveSvg').innerHTML=s;
+  }
+
+  /* ---- "most resembles [year]" via standardized nearest match ---- */
+  function resembles(userVec){
+    const st=LAB.match_stats, vars=LAB.match_vars;
+    const z=(v,name)=> (v-st[name].mean)/(st[name].std||1);
+    let best=null;
+    LAB.episodes.forEach(ep=>{
+      let sum=0,n=0,diffs={};
+      vars.forEach(v=>{ if(ep.vec[v]===null||userVec[v]===undefined) return;
+        const d=z(userVec[v],v)-z(ep.vec[v],v); diffs[v]=Math.abs(d); sum+=d*d; n++; });
+      if(n===0) return;
+      const dist=Math.sqrt(sum/n);
+      if(!best||dist<best.dist) best={ep,dist,diffs};
+    });
+    if(!best) return;
+    // the two dimensions where the match is tightest
+    const close=Object.entries(best.diffs).sort((a,b)=>a[1]-b[1]).slice(0,2)
+      .map(([v])=>LAB.match_labels[v]);
+    document.getElementById('resembles').innerHTML =
+      `<b>Your scenario most resembles ${best.ep.label}.</b><br>
+       <span class="note">What happened then: ${best.ep.outcome}. The closest match is driven mainly by
+       ${close.join(' and ')}. (Resemblance uses the whole scenario — the curve plus the fragility inputs —
+       standardized across the 8 reference episodes; it describes character, it is not a probability.)</span>`;
+  }
+
+  /* ---- the live recompute ---- */
+  function recompute(){
+    const yf=val('fedfunds'),y3=val('y3m'),y2=val('y2'),y10=val('y10');
+    Y.forEach(([k])=>document.getElementById('lbl_'+k).textContent=val(k).toFixed(2)+'%');
+    const spreads={'10y-3m':y10-y3,'10y-ff':y10-yf,'10y-2y':y10-y2};
+    // spread readout
+    document.getElementById('spreadbox').innerHTML = Object.entries(spreads).map(([k,v])=>
+      `<span>${k}: <b style="color:${v<0?'var(--red)':'var(--ink)'}">${v>=0?'+':''}${v.toFixed(2)} pp</b></span>`).join('');
+    drawCurve(yf,y3,y2,y10);
+
+    // probability from the SELECTED model's fitted coefficients
+    const m=LAB.models[selected], sp=spreads[selected];
+    const p=Math.max(0,Math.min(100, normCdf(m.const+m.slope*sp)*100));
+    drawGauge(p);
+
+    // fragility values
+    const fv={}; Object.keys(F).forEach(k=>{fv[k]=val(k);
+      document.getElementById('lbl_'+k).textContent=val(k).toFixed(k==='debt_income'||k==='sloos'?0:1);});
+    // character verdict (uses the selected curve's inversion + debt/house/credit thresholds)
+    const inverted=sp<0;
+    const debtHigh=fv.debt_income>F.debt_income.warn_above;
+    const houseFall=fv.real_house<F.real_house.warn_below;
+    const creditSpike=fv.credit>F.credit.warn_above;
+    const fragility=debtHigh||(houseFall&&creditSpike);
+    const b=document.getElementById('labBanner');
+    if(!inverted){ b.className='banner b-clear';
+      b.innerHTML='ALL CLEAR<small>The selected curve is not inverted, so the spread is not warning.</small>';
+    } else if(fragility){ b.className='banner b-warn';
+      b.innerHTML='GENUINE WARNING<small>Inverted curve + credit-cycle fragility present — 2008-type risk.</small>';
+    } else { b.className='banner b-nocc';
+      b.innerHTML='INVERTED — NO CREDIT-CYCLE FRAGILITY<small>A 2008-style collapse looks unlikely; a recession from other causes is still possible.</small>';
+    }
+
+    // most-resembles match on the full standardized vector
+    resembles({spread_10y_3m:y10-y3, real_hpi_yoy:fv.real_house, credit_spread:fv.credit,
+               hh_debt_income:fv.debt_income, hh_debt_growth:fv.debt_growth, sloos:fv.sloos,
+               foreign_born_growth:fv.migration});
+  }
+
+  recompute();   // initial paint
 })();
 </script>
 </body>
