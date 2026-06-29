@@ -72,6 +72,13 @@
   .resembles b{font-size:15px}
   .lab-gauge-num{font-size:34px;font-weight:700;text-align:center;margin-top:-6px}
   .warnlabel{font-size:12px;color:var(--muted)}
+  table.sc{width:100%;border-collapse:collapse;font-size:13px}
+  table.sc th,table.sc td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--line)}
+  table.sc th:first-child,table.sc td:first-child{text-align:left}
+  table.sc th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
+  table.sc tr.def td{background:#eef3ff}
+  table.sc td.best{color:var(--green);font-weight:700}
+  .rankline{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -119,6 +126,9 @@
     </p>
 
     <div class="lab-models" id="labModels"></div>
+
+    <h3 style="margin-top:14px">Ranking the three curve measures (Zandi's "Step 1")</h3>
+    <div id="scorecard"></div>
 
     <div class="lab-grid">
       <div>
@@ -289,6 +299,36 @@ document.getElementById('asof').textContent =
     mhost.querySelectorAll('.mbtn').forEach(x=>x.classList.toggle('active',x.dataset.m===selected));
     recompute();
   });
+
+  /* ---- Zandi Step-1 scorecard table + per-criterion ranking ---- */
+  (function(){
+    const M=LAB.models, names=Object.keys(M);
+    const best=(k,hi)=>{const v=names.map(n=>M[n][k]).filter(x=>x!=null);return hi?Math.max(...v):Math.min(...v);};
+    const bAuc=best('oos_auc',true), bFp=best('false_pos',false), bLead=best('lead_mean',true);
+    const rows=names.map(n=>{const m=M[n];
+      const lead=m.lead_mean!=null?`${m.lead_mean} mo (${m.lead_min}–${m.lead_max})`:'n/a';
+      return `<tr class="${n==='10y-3m'?'def':''}">
+        <td>${n}${n==='10y-3m'?' ★':''}</td>
+        <td class="${m.oos_auc===bAuc?'best':''}">${m.oos_auc}</td>
+        <td>${m.onsets}</td>
+        <td class="${m.false_pos===bFp?'best':''}">${m.false_pos}</td>
+        <td>${m.hit_rate}</td>
+        <td class="${m.lead_mean===bLead?'best':''}">${lead}</td></tr>`;}).join('');
+    const ord=(k,hi)=>names.filter(n=>M[n][k]!=null).sort((a,b)=>hi?M[b][k]-M[a][k]:M[a][k]-M[b][k])
+      .map(n=>`${n} (${M[n][k]})`).join(' › ');
+    document.getElementById('scorecard').innerHTML =
+      `<table class="sc"><thead><tr><th>spread</th><th>OOS AUC</th><th>onsets</th>
+       <th>false +</th><th>hit-rate</th><th>lead time</th></tr></thead><tbody>${rows}</tbody></table>
+       <div class="rankline">
+         <b>Rank by accuracy</b> (OOS AUC): ${ord('oos_auc',true)}<br>
+         <b>Rank by fewest false alarms</b>: ${ord('false_pos',false)}<br>
+         <b>Rank by longest lead time</b>: ${ord('lead_mean',true)}<br>
+         ★ 10y‑3m is the default headline (rule 7): it has the <b>fewest false positives</b>, which
+         is the project's stated goal of minimizing false alarms — even though 10y‑fed&nbsp;funds scores
+         highest on raw accuracy. The criteria genuinely trade off, so all three rankings are shown rather
+         than collapsed into one score.
+       </div>`;
+  })();
 
   /* ---- four yield sliders ---- */
   const Y=[['fedfunds','Fed funds'],['y3m','3-month'],['y2','2-year'],['y10','10-year']];

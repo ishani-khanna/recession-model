@@ -158,6 +158,37 @@ def spread_model(name, col):
 
 lab_models = {name: spread_model(name, col) for name, col in LAB_SPREADS.items()}
 
+# --- Zandi Step-1 scorecard stats (Phase 4D): inversion episodes -> false positives + lead time ---
+MERGE_GAP, LEAD_WINDOW = 3, 18
+def _episodes(col):
+    s = df[col].dropna(); inv = s < 0
+    eps, start, prev, gap = [], None, None, 0
+    for d_, isinv in inv.items():
+        if isinv:
+            if start is None: start = d_
+            prev = d_; gap = 0
+        elif start is not None:
+            gap += 1
+            if gap > MERGE_GAP: eps.append((start, prev)); start = None
+    if start is not None: eps.append((start, prev))
+    return eps
+def _scorecard(col):
+    eps = _episodes(col)
+    a0, a1 = df[col].dropna().index.min(), df[col].dropna().index.max()
+    onin = [o for o in onsets if a0 <= o <= a1]
+    leads, fp, caught = [], 0, set()
+    for (a, b) in eps:
+        nxt = [o for o in onsets if 0 < (o.year-a.year)*12+(o.month-a.month) <= LEAD_WINDOW]
+        if nxt:
+            o = min(nxt); caught.add(o); leads.append((o.year-a.year)*12+(o.month-a.month))
+        else: fp += 1
+    return {"inversions": len(eps), "false_pos": fp,
+            "hit_rate": round(len(caught)/len(onin), 2) if onin else None,
+            "lead_mean": round(float(np.mean(leads)), 1) if leads else None,
+            "lead_min": min(leads) if leads else None, "lead_max": max(leads) if leads else None}
+for nm, col in LAB_SPREADS.items():
+    lab_models[nm].update(_scorecard(col))
+
 # current yields (slider defaults for the four-yield curve input)
 def last(c): return round(float(df[c].dropna().iloc[-1]), 2)
 lab_curve = {"y3m": last("y3m"), "y2": last("y2"), "y10": last("y10"), "fedfunds": last("fedfunds")}
