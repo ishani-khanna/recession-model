@@ -39,11 +39,15 @@ df["spread_10y_2y"] = df["y10"] - df["y2"]
 #    real price = nominal index / CPI  (the level is arbitrary; only its
 #    growth rate matters). YoY change compares each month to 12 months earlier.
 # ---------------------------------------------------------------------------
+# NOTE: pandas pct_change defaults to fill_method='pad', which silently FORWARD-FILLS
+# missing months before computing - that would fabricate a house-price reading for months
+# we don't actually have data for (and quietly break vintage honesty, rule 3). We pass
+# fill_method=None everywhere so a missing input stays missing instead of being invented.
 df["real_hpi"] = df["hpi"] / df["cpi"]
-df["real_hpi_yoy"] = df["real_hpi"].pct_change(12) * 100   # percent
+df["real_hpi_yoy"] = df["real_hpi"].pct_change(12, fill_method=None) * 100   # percent
 
 # (For reference/interpretation we also keep nominal YoY, to show the contrast.)
-df["nominal_hpi_yoy"] = df["hpi"].pct_change(12) * 100
+df["nominal_hpi_yoy"] = df["hpi"].pct_change(12, fill_method=None) * 100
 
 # ---------------------------------------------------------------------------
 # 3. Credit spreads.
@@ -67,13 +71,13 @@ df["corp_debt_gdp"]  = (df["corp_debt"] / 1000 / df["gdp"] * 100).ffill()
 # 5. Debt GROWTH / credit impulse (Zandi: growth in debt outstanding as a proxy for
 #    credit availability). Year-over-year % growth of household and corporate debt.
 # ---------------------------------------------------------------------------
-df["hh_debt_growth"]   = df["hh_debt"].pct_change(12) * 100
-df["corp_debt_growth"] = df["corp_debt"].pct_change(12) * 100
+df["hh_debt_growth"]   = df["hh_debt"].pct_change(12, fill_method=None) * 100
+df["corp_debt_growth"] = df["corp_debt"].pct_change(12, fill_method=None) * 100
 
 # ---------------------------------------------------------------------------
 # 6. Labor supply / migration proxy: YoY growth of the foreign-born labor force.
 # ---------------------------------------------------------------------------
-df["foreign_born_growth"] = df["foreign_born"].pct_change(12) * 100
+df["foreign_born_growth"] = df["foreign_born"].pct_change(12, fill_method=None) * 100
 
 df.to_csv("data/features.csv")
 print(f"Saved data/features.csv  ->  {df.shape[0]} months x {df.shape[1]} columns")
