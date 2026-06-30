@@ -1,28 +1,19 @@
 name: refresh-recession-indicator
 
 # Weekly refresh: re-pull FRED, recompute the model, regenerate the report + the
-# interactive dashboard, run the tests, upload outputs, and publish the dashboard to Pages.
+# interactive dashboard, run the tests, and commit the refreshed docs/index.html.
+# GitHub Pages serves docs/index.html (Settings -> Pages -> source = main /docs).
 on:
   schedule:
     - cron: "0 11 * * 1"      # Mondays 11:00 UTC
   workflow_dispatch: {}        # allow manual runs from the Actions tab
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Allow only one concurrent deployment.
-concurrency:
-  group: pages
-  cancel-in-progress: false
+  contents: write              # to commit the refreshed docs/index.html
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -41,9 +32,9 @@ jobs:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: |
           printf 'FRED_API_KEY=%s\n' "$FRED_API_KEY" > .env
-          mkdir -p data output outputs
+          mkdir -p data output outputs docs
 
-      - name: Build, model, validate, report (+ regenerate dashboard)
+      - name: Build, model, validate, report (+ regenerate dashboard -> docs/index.html)
         env:
           # Secrets live in the repo settings, never in code. FRED is required;
           # DataBuffet is optional (reconciliation degrades gracefully without it).
@@ -55,21 +46,20 @@ jobs:
       - name: Run tests
         run: pytest -q -m "not integration"
 
+      - name: Commit refreshed dashboard (docs/index.html)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/index.html docs/.nojekyll
+          if git diff --staged --quiet; then
+            echo "dashboard unchanged; nothing to commit"
+          else
+            git commit -m "Weekly refresh: update dashboard (docs/index.html)"
+            git push
+          fi
+
       - name: Upload outputs artifact
         uses: actions/upload-artifact@v4
         with:
           name: recession-indicator-outputs
           path: outputs/
-
-      # ---- Publish the interactive dashboard (output/index.html) to GitHub Pages ----
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload dashboard as Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: output      # the self-contained interactive dashboard (index.html)
-
-      - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages@v4

@@ -21,6 +21,7 @@ Plain English:
 """
 
 import json
+import os
 import warnings
 import numpy as np
 import pandas as pd
@@ -340,6 +341,12 @@ with open("output/dashboard.html", "w") as f:
 # also write index.html (the entry point GitHub Pages serves by default)
 with open("output/index.html", "w") as f:
     f.write(html)
+# and write a version-controlled copy to docs/ so it shows up in the repo and is what
+# GitHub Pages serves (source = main branch /docs). .nojekyll keeps it served as-is.
+os.makedirs("docs", exist_ok=True)
+with open("docs/index.html", "w") as f:
+    f.write(html)
+open("docs/.nojekyll", "w").close()
 
 print("Phase 6 data built.")
 print(f"  as of           : {data['as_of']}")
