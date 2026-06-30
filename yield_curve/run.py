@@ -12,6 +12,8 @@ With no command, defaults to `report`.
 from __future__ import annotations
 
 import argparse
+import subprocess
+import sys
 import warnings
 
 import numpy as np
@@ -20,6 +22,28 @@ from scipy.stats import norm
 from . import reporting
 from .data import build_dataset, config
 from .models import probit, validation
+
+
+# Flat "interactive dashboard" pipeline (gauge + scenario lab + conditions matrix).
+# Lives as standalone scripts at the repo root; we regenerate output/index.html after
+# the report so a single command refreshes BOTH the report and the interactive dashboard.
+_DASHBOARD_STEPS = [
+    "build_dataset.py", "build_features.py", "build_verdict.py", "build_dashboard_data.py",
+]
+
+
+def _regenerate_dashboard() -> None:
+    root = config.PROJECT_ROOT
+    print("\n=== Regenerating interactive dashboard (output/index.html) ===")
+    for script in _DASHBOARD_STEPS:
+        try:
+            subprocess.run([sys.executable, script], cwd=root, check=True,
+                           capture_output=True, text=True)
+            print(f"  ✓ {script}")
+        except subprocess.CalledProcessError as e:  # never let it break the report
+            print(f"  ✗ {script} failed: {e.stderr.strip().splitlines()[-1] if e.stderr else e}")
+            return
+    print(f"  dashboard -> {root / 'output' / 'index.html'}")
 
 warnings.filterwarnings("ignore")
 
@@ -61,6 +85,7 @@ def cmd_report(panel, args) -> None:
     out = reporting.write_report(panel)
     print(f"report + charts -> {out}")
     _print_reading(panel, args.spread, args.horizon)
+    _regenerate_dashboard()
 
 
 def cmd_all(panel, args) -> None:
