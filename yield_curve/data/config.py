@@ -104,6 +104,10 @@ DEFAULT_HORIZON = 12
 # points). 2 basis points = 0.02 pp.
 RECONCILE_TOLERANCE_PP = 0.02
 
+# 3-month bill is quoted discount-basis; convert to bond-equivalent before differencing.
+DISCOUNT_BASIS_BILLS = {"DTB3"}   # the only discount-basis daily series in FRED_DAILY
+BILL_BE_DAYS = 91                 # 13-week bill, days to maturity
+
 # --------------------------------------------------------------------------- #
 # DataBuffet mnemonics
 # --------------------------------------------------------------------------- #
