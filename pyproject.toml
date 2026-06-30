@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+# Put the repo root on sys.path so `import yield_curve` works when pytest is invoked
+# as a console script (e.g. in CI), not only via `python -m pytest`.
+pythonpath = ["."]
+markers = [
+    "integration: hits live FRED/DataBuffet APIs; skips offline",
+]
