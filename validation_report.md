@@ -25,7 +25,7 @@ the model *ranks* risky months above calm ones: 0.5 is a coin flip, 1.0 is perfe
 **Reading this:**
 - The headline 10y−3m model holds up out-of-sample (0.797 vs 0.822 in-sample) — a **small gap**,
   which is the reassuring sign that it is not overfit.
-- **The ranking trade-off (Zandi's "Step 1").** No single spread wins on everything:
+- **The ranking trade-off (Step 1).** No single spread wins on everything:
   - *Most accurate / earliest:* 10y−fed funds (OOS AUC 0.853, 12.5-month average lead) — but it
     **cries wolf the most (7 false positives)** because the fed funds policy rate is volatile.
   - *Fewest false alarms:* **10y−3m (just 2)** — which is exactly the project's goal of minimizing
