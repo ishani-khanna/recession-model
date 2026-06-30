@@ -34,6 +34,7 @@ build_verdict.py  -  PHASE 5: the fragility / CHARACTER layer.
 
 import warnings
 import pandas as pd
+from config import THRESHOLDS
 
 warnings.filterwarnings("ignore")
 
@@ -45,11 +46,11 @@ df["hh_debt_income"] = (df["hh_debt"] / 1000 / df["dpi"] * 100).ffill()
 # real house price YoY with the 2-month publication lag (rule 3)
 df["real_hpi_yoy_lag2"] = df["real_hpi_yoy"].shift(2)
 
-# ---- documented JUDGMENT-CALL thresholds -----------------------------------
-T_INVERT       = 0.0
-T_DEBT_HIGH    = 110.0
-T_HOUSE_FALL   = 0.0
-T_CREDIT_SPIKE = 2.5
+# ---- documented JUDGMENT-CALL thresholds (from the SHARED config) ----------
+T_INVERT       = THRESHOLDS["inverted"]["value"]   # < 0
+T_DEBT_HIGH    = THRESHOLDS["leverage"]["value"]   # > 110
+T_HOUSE_FALL   = THRESHOLDS["house"]["value"]      # < -2  (was 0; see config.py)
+T_CREDIT_SPIKE = THRESHOLDS["credit"]["value"]     # > 2.5
 
 # full-text readings (never the words "false alarm")
 V_WARN  = "GENUINE WARNING - credit-cycle (2008-type) fragility present"

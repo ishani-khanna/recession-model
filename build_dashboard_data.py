@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from sklearn.metrics import roc_auc_score
+from config import THRESHOLDS, is_danger
 
 warnings.filterwarnings("ignore")
 
@@ -103,15 +104,17 @@ recessions = [{"start": s.strftime("%Y-%m"), "end": e.strftime("%Y-%m")} for s, 
 # ---- Current fragility lights (values + thresholds, judgment calls visible) -
 cv = verdict.loc[latest_date]
 rh = cv["real_hpi_yoy_lag2"]
+# thresholds pulled from the SHARED config so the lights can never drift from the matrix/verdict
+T = THRESHOLDS
 lights = [
     {"name": "Curve inverted",            "value": f"{cv['spread_10y_3m']:+.2f} pp",
-     "threshold": "warns if < 0.00 pp",   "on": bool(cv["inverted"])},
+     "threshold": f"warns if < {T['inverted']['value']:.2f} pp", "on": bool(cv["inverted"])},
     {"name": "Household debt high",        "value": f"{cv['hh_debt_income']:.0f}% of income",
-     "threshold": "warns if > 110%",      "on": bool(cv["debt_high"])},
+     "threshold": f"warns if > {T['leverage']['value']:.0f}%",   "on": bool(cv["debt_high"])},
     {"name": "Real house prices falling",  "value": ("n/a" if pd.isna(rh) else f"{rh:+.1f}% YoY"),
-     "threshold": "warns if < 0%",        "on": bool(cv["house_falling"])},
+     "threshold": f"warns if < {T['house']['value']:.0f}%",      "on": bool(cv["house_falling"])},
     {"name": "Credit spread spiking",      "value": f"{cv['credit_spread']:.2f} pp",
-     "threshold": "warns if > 2.50 pp",   "on": bool(cv["credit_spiking"])},
+     "threshold": f"warns if > {T['credit']['value']:.2f} pp",   "on": bool(cv["credit_spiking"])},
 ]
 
 # character banner
@@ -195,15 +198,15 @@ lab_curve = {"y3m": last("y3m"), "y2": last("y2"), "y10": last("y10"), "fedfunds
 
 # current fragility values (slider defaults) + ranges + thresholds
 lab_frag = {
-    "debt_income": {"value": last("hh_debt_income"), "min": 60, "max": 140, "warn_above": 110,
+    "debt_income": {"value": last("hh_debt_income"), "min": 60, "max": 140, "warn_above": THRESHOLDS["leverage"]["value"],
                     "label": "Household debt-to-income (%)"},
-    "real_house":  {"value": last("real_hpi_yoy"),   "min": -15, "max": 15, "warn_below": 0,
+    "real_house":  {"value": round(float(cv["real_hpi_yoy_lag2"]), 2), "min": -15, "max": 15, "warn_below": THRESHOLDS["house"]["value"],
                     "label": "Real house prices YoY (%)"},
-    "credit":      {"value": last("credit_spread"),  "min": 0.5, "max": 4.0, "warn_above": 2.5,
+    "credit":      {"value": last("credit_spread"),  "min": 0.5, "max": 4.0, "warn_above": THRESHOLDS["credit"]["value"],
                     "label": "Credit spread Baa-10yr (pp)"},
     "debt_growth": {"value": last("hh_debt_growth"), "min": -5, "max": 15, "warn_above": None,
                     "label": "Household debt growth YoY (%)"},
-    "sloos":       {"value": last("sloos"),          "min": -25, "max": 60, "warn_above": 15,
+    "sloos":       {"value": last("sloos"),          "min": -25, "max": 60, "warn_above": THRESHOLDS["banks"]["value"],
                     "label": "Banks tightening, SLOOS (net %)"},
     "migration":   {"value": last("foreign_born_growth"), "min": -5, "max": 10, "warn_above": None,
                     "label": "Foreign-born labor force growth YoY (%)"},
@@ -241,6 +244,50 @@ lab = {"models": lab_models, "curve_defaults": lab_curve, "fragility": lab_frag,
        "episodes": episodes, "match_vars": MATCH_VARS, "match_labels": MATCH_LABEL,
        "match_stats": match_stats}
 
+# ===========================================================================
+# PHASE 6D: recession conditions matrix (built from live data; shared thresholds)
+# ===========================================================================
+# Columns: two labeled blocks. LEADING = present before a recession; COINCIDENT =
+# widen DURING/AFTER, so they often read calm at the inversion (2007 is the example).
+MATRIX_COLS = [
+    ("inverted", "spread_10y_3m",   "Curve inverted",       "10y-3m, pp",  "leading",   lambda v: f"{v:+.2f}"),
+    ("leverage", "hh_debt_income",  "Leverage high",        "debt/income", "leading",   lambda v: f"{v:.0f}%"),
+    ("house",    "real_hpi_yoy",    "House prices falling", "real YoY",    "leading",    lambda v: f"{v:+.1f}%"),
+    ("credit",   "credit_spread",   "Credit stress",        "Baa-10yr",    "coincident", lambda v: f"{v:.2f}"),
+    ("banks",    "sloos",           "Banks tightening",     "SLOOS net %", "coincident", lambda v: f"{v:+.0f}"),
+]
+
+def matrix_cell(key, col, fmt, row):
+    v = row[col]
+    if pd.isna(v):
+        return {"value": "—", "danger": False, "na": True}
+    return {"value": fmt(float(v)), "danger": bool(is_danger(key, float(v))), "na": False}
+
+matrix_rows = []
+for d_, (label, outcome) in EPISODES_LAB.items():
+    r = df.loc[pd.Timestamp(d_)]
+    rec_followed = ("recession" in outcome.lower()) and ("no recession" not in outcome.lower())
+    matrix_rows.append({
+        "label": label, "outcome": outcome, "outcome_rec": rec_followed, "today": False,
+        "cells": {k: matrix_cell(k, col, fmt, r) for (k, col, _, _, _, fmt) in MATRIX_COLS},
+    })
+# the live "Today" row, from the latest monthly data (uses the same as-of basis as the lights)
+today = {"spread_10y_3m": float(cv["spread_10y_3m"]), "hh_debt_income": float(cv["hh_debt_income"]),
+         "real_hpi_yoy": float(cv["real_hpi_yoy_lag2"]), "credit_spread": float(cv["credit_spread"]),
+         "sloos": (float(df["sloos"].dropna().iloc[-1]) if df["sloos"].notna().any() else float("nan"))}
+matrix_rows.append({
+    "label": f"TODAY ({latest_date.strftime('%b %Y')})", "outcome": short, "outcome_rec": None, "today": True,
+    "cells": {k: matrix_cell(k, col, fmt, pd.Series(today)) for (k, col, _, _, _, fmt) in MATRIX_COLS},
+})
+matrix = {
+    "cols": [{"key": k, "label": lab_, "sub": sub, "block": blk} for (k, _, lab_, sub, blk, _) in MATRIX_COLS],
+    "rows": matrix_rows,
+}
+
+# shared threshold config, exported so the front-end uses the SAME numbers everywhere
+config_out = {"thresholds": {k: {"value": t["value"], "dir": t["dir"], "label": t["label"]}
+                             for k, t in THRESHOLDS.items()}}
+
 # ---- Assemble JSON --------------------------------------------------------
 plot_dates = list(s_all.index)
 data = {
@@ -258,6 +305,8 @@ data = {
     },
     "recessions": recessions,
     "lab": lab,
+    "matrix": matrix,
+    "config": config_out,
 }
 
 with open("output/dashboard_data.json", "w") as f:

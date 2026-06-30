@@ -79,6 +79,24 @@
   table.sc tr.def td{background:#eef3ff}
   table.sc td.best{color:var(--green);font-weight:700}
   .rankline{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+  /* ---- conditions matrix ---- */
+  table.mx{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+  table.mx th,table.mx td{padding:6px 7px;text-align:center;border-bottom:1px solid var(--line)}
+  table.mx th:first-child,table.mx td:first-child{text-align:left;white-space:nowrap}
+  table.mx thead .blk{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);
+       border-bottom:2px solid var(--line)}
+  table.mx thead .blk.lead{color:#1b4ed8}
+  table.mx thead .blk.coin{color:#8a4b00}
+  table.mx th.col{font-size:11px;color:var(--ink);font-weight:600;line-height:1.2}
+  table.mx th.col small{display:block;color:var(--muted);font-weight:400;font-size:10px}
+  td.dng{background:#fdecec;color:#a01818;font-weight:700}
+  td.ben{background:#eafaf0;color:#10632f}
+  td.na{color:#c2c7d2}
+  td.out-rec{background:#fdecec;color:#a01818;font-weight:600;text-align:left}
+  td.out-no{background:#eafaf0;color:#10632f;text-align:left}
+  td.out-today{background:#eef3ff;color:#1b4ed8;font-weight:600;text-align:left}
+  table.mx tr.today td{border-top:2px solid var(--blue);font-weight:600}
+  .divider{border-left:2px solid var(--line)}
 </style>
 </head>
 <body>
@@ -154,6 +172,20 @@
     <div class="frag-grid" id="fragSliders"></div>
 
     <div class="resembles" id="resembles"></div>
+  </div>
+
+  <!-- RECESSION CONDITIONS MATRIX (Phase 6D) -->
+  <div class="card">
+    <h2>Recession conditions matrix — which ingredients were in place at each inversion</h2>
+    <p class="note" style="margin-top:0">
+      Each row is a historical yield-curve inversion (at its deepest month), plus a live
+      <b>Today</b> row. Compare <b>2007</b> and <b>2023</b>: both inverted with falling real
+      house prices, but household leverage was <b>133%</b> of income in 2007 versus <b>95%</b>
+      in 2023. That leverage gap is the cleanest single piece of evidence for why 2022–24
+      inverted yet produced no recession.
+    </p>
+    <div style="overflow-x:auto"><table class="mx" id="matrix"></table></div>
+    <p class="note" id="matrixnote"></p>
   </div>
 
   <p class="note">
@@ -449,6 +481,52 @@ document.getElementById('asof').textContent =
   }
 
   recompute();   // initial paint
+})();
+
+/* ====================== CONDITIONS MATRIX (Phase 6D) ====================== */
+(function(){
+  const MX = DATA.matrix;
+  const cols = MX.cols;
+  const nLead = cols.filter(c=>c.block==='leading').length;
+  const nCoin = cols.filter(c=>c.block==='coincident').length;
+  const firstCoin = cols.findIndex(c=>c.block==='coincident');
+
+  // two header rows: block labels, then column labels
+  let head = `<thead>
+    <tr><th></th>
+      <th class="blk lead" colspan="${nLead}">Leading — present before a recession</th>
+      <th class="blk coin" colspan="${nCoin}">Coincident — widen during the downturn</th>
+      <th></th></tr>
+    <tr><th>Episode</th>`;
+  cols.forEach((c,i)=>{
+    head += `<th class="col${i===firstCoin?' divider':''}">${c.label}<small>${c.sub}</small></th>`;
+  });
+  head += `<th class="col">Outcome</th></tr></thead>`;
+
+  let body = '<tbody>';
+  MX.rows.forEach(r=>{
+    body += `<tr class="${r.today?'today':''}">`;
+    body += `<td>${r.label}</td>`;
+    cols.forEach((c,i)=>{
+      const cell=r.cells[c.key];
+      const cls = cell.na?'na':(cell.danger?'dng':'ben');
+      body += `<td class="${cls}${i===firstCoin?' divider':''}">${cell.value}</td>`;
+    });
+    const ocls = r.today?'out-today':(r.outcome_rec?'out-rec':'out-no');
+    body += `<td class="${ocls}">${r.outcome}</td></tr>`;
+  });
+  body += '</tbody>';
+  document.getElementById('matrix').innerHTML = head + body;
+
+  document.getElementById('matrixnote').innerHTML =
+    'Red = in the danger zone; green = benign; “—” = the data series doesn’t reach that far back. '
+    + '<b>The coincident confirmers (credit, banks) widen during the downturn</b>, so they can read calm '
+    + 'at the inversion — 2007 is the example (credit 1.71 and banks both green, yet the recession came). '
+    + 'This matrix <b>describes</b> what conditions were present and what history did; it does not predict, '
+    + 'and it never labels an episode a “false alarm.” Takeaway: there is no single recipe — the full '
+    + 'credit-cycle stack lined up only in 2007; other recessions had other triggers (policy 1980, tech-bust '
+    + '2000, COVID 2020). The curve is the one ingredient present ahead of most of them, and the '
+    + '2007-vs-2023 leverage gap (133% vs 95%) is the cleanest evidence for the low-leverage explanation of 2022–24.';
 })();
 </script>
 </body>
