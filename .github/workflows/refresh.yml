@@ -36,6 +36,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Prepare runtime .env + dirs (the flat dashboard scripts read .env / write output/)
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: |
+          printf 'FRED_API_KEY=%s\n' "$FRED_API_KEY" > .env
+          mkdir -p data output outputs
+
       - name: Build, model, validate, report (+ regenerate dashboard)
         env:
           # Secrets live in the repo settings, never in code. FRED is required;
