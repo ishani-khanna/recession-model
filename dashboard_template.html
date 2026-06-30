@@ -145,7 +145,7 @@
 
     <div class="lab-models" id="labModels"></div>
 
-    <h3 style="margin-top:14px">Ranking the three curve measures (Zandi's "Step 1")</h3>
+    <h3 style="margin-top:14px">Ranking the three curve measures</h3>
     <div id="scorecard"></div>
 
     <div class="lab-grid">
@@ -332,7 +332,7 @@ document.getElementById('asof').textContent =
     recompute();
   });
 
-  /* ---- Zandi Step-1 scorecard table + per-criterion ranking ---- */
+  /* ---- scorecard table + per-criterion ranking ---- */
   (function(){
     const M=LAB.models, names=Object.keys(M);
     const best=(k,hi)=>{const v=names.map(n=>M[n][k]).filter(x=>x!=null);return hi?Math.max(...v):Math.min(...v);};

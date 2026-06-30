@@ -8,9 +8,9 @@ Reconstructed to match reporting.py's usage:
   returns (statsmodels_result, auc, n). The result's .params is indexed by
   'const' plus the feature column names (e.g. 'spread_10y3m', 'baa_aa').
 
-RECONSTRUCTION NOTE: Zandi's README labels the credit-quality spread "Baa-Aa". FRED
+RECONSTRUCTION NOTE: the project README labels the credit-quality spread "Baa-Aa". FRED
 publishes Moody's Aaa (AAA) and Baa (BAA) but not a clean long-history "Aa", so this
-uses BAA - AAA (the classic default-risk spread). If Zandi used a distinct Aa series,
+uses BAA - AAA (the classic default-risk spread). If a distinct Aa series is used,
 replace load_baa_aa only; fit_insample and all downstream code are unaffected.
 """
 

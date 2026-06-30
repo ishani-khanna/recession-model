@@ -2,9 +2,9 @@
 # >>> RENAME THIS FILE TO  CLAUDE.md  AND PLACE IT IN THE PROJECT ROOT <<<
 # (Claude Code auto-reads CLAUDE.md at the start of every session.)
 
-Standing instructions. Read at the start of every session. Build in phases, one at a time, confirm before moving on. Explain in plain English (the user is non-technical). Validate against Section 6. This brief is the source of truth and reflects everything Mark Zandi specified (see Sections 4A and 9).
+Standing instructions. Read at the start of every session. Build in phases, one at a time, confirm before moving on. Explain in plain English (the user is non-technical). Validate against Section 6. This brief is the source of truth and reflects everything the project brief specifies (see Sections 4A and 9).
 
-## 1. Goal (Zandi)
+## 1. Goal (per the brief)
 Two goals, in his words: (a) establish the BEST measure of the yield curve for predicting US recessions since World War II, and (b) understand WHY the 2022-2024 inversion did not produce a recession. End products: a self-updating, INTERACTIVE dashboard and a research paper (Substack).
 
 ## 2. What we are building
@@ -13,33 +13,33 @@ A monthly model that reads FRED data, computes a recession probability (from the
 ## 3. Data (all FRED; user has an API key). Make everything MONTHLY (interpolate quarterly; forward-fill latest so the live read never breaks - but NEVER let pct_change forward-fill, see 6C).
 Use EVERY series below - all pulled deliberately, all must be put to work (probability models, verdict layer, scenario lab, conditions matrix, or historical comparison). None should sit unused.
 - Yields/rates (monthly): GS10, TB3MS, GS2, FEDFUNDS.
-- Recession dates (monthly): USREC (Zandi: use FRED's official recession dates to pin the exact monthly dates to test against).
+- Recession dates (monthly): USREC (Note: use FRED's official recession dates to pin the exact monthly dates to test against).
 - Credit (monthly): BAA, AAA. Spreads: Baa-Aaa = BAA-AAA; Baa-10yr Treasury = BAA-GS10. (For the paper's narrative, a high-yield spread is useful: it peaked ~6% in late 2022 vs ~10%/11%/20% in 2001/2020/2008.)
 - Inflation (monthly): CPIAUCSL (deflator for real house prices).
 - Housing (monthly): CSUSHPINSA. Nominal YoY AND real YoY (= CSUSHPINSA/CPIAUCSL, YoY).
-- Debt levels (quarterly, interpolate): CMDEBT (household), BCNSDODNS (nonfinancial corporate), DPI, GDP. Ratios: HH debt/income = CMDEBT/DPI; HH debt/GDP = CMDEBT/GDP; corp debt/GDP = BCNSDODNS/GDP. (Zandi named all three: household debt/GDP, nonfinancial corporate debt/GDP, household debt relative to income.)
-- Debt GROWTH / credit impulse (per Zandi): YoY % growth of CMDEBT and of BCNSDODNS - "growth in debt outstanding as a proxy for credit availability."
+- Debt levels (quarterly, interpolate): CMDEBT (household), BCNSDODNS (nonfinancial corporate), DPI, GDP. Ratios: HH debt/income = CMDEBT/DPI; HH debt/GDP = CMDEBT/GDP; corp debt/GDP = BCNSDODNS/GDP. (the brief named all three: household debt/GDP, nonfinancial corporate debt/GDP, household debt relative to income.)
+- Debt GROWTH / credit impulse (per the brief): YoY % growth of CMDEBT and of BCNSDODNS - "growth in debt outstanding as a proxy for credit availability."
 - Household debt-service ratio (quarterly, from 2005): TDSP.
-- Credit availability (Zandi: the Fed's quarterly Senior Loan Officer Opinion Survey, whether banks are tightening or easing): DRTSCILM (SLOOS net % tightening C&I), from 1990.
-- Labor / migration (Zandi Theory 2): UNRATE (monthly); foreign-born civilian labor force LNU01073395 (monthly, from 2007, BLS household survey on FRED) and its YoY growth as the immigration / labor-supply proxy; job openings JTSJOL (monthly, from 2000).
+- Credit availability (Note: the Fed's quarterly Senior Loan Officer Opinion Survey, whether banks are tightening or easing): DRTSCILM (SLOOS net % tightening C&I), from 1990.
+- Labor / migration (Theory 2): UNRATE (monthly); foreign-born civilian labor force LNU01073395 (monthly, from 2007, BLS household survey on FRED) and its YoY growth as the immigration / labor-supply proxy; job openings JTSJOL (monthly, from 2000).
 
 ## 4. The model
-### Three yield-spread models - all FIRST-CLASS (Zandi Step 1: experiment with all three)
-The three measures Zandi named: 10y-Fed funds, 10y-3m, 10y-2y. Build and SHOW all three as comparable probability models. Confirmed results (12-month horizon):
+### Three yield-spread models - all FIRST-CLASS (Step 1: experiment with all three)
+The three measures the brief named: 10y-Fed funds, 10y-3m, 10y-2y. Build and SHOW all three as comparable probability models. Confirmed results (12-month horizon):
 - 10y-3m: in-AUC 0.822, OOS 0.797, 8 onsets, current ~12.4% - the pre-committed DEFAULT headline.
 - 10y-fed funds: in 0.855, OOS 0.853 (highest), 8 onsets, current ~8.5% - leans on policy rate (Wright 2006). Historically often treated as most accurate. Show, do not crown.
 - 10y-2y: in 0.816, OOS 0.694, 4 onsets (short history from 1976), current ~9.9%. The "increasingly favored" measure in commentary - let the analysis judge, do not assume.
 The lab lets the user SELECT which spread drives the gauge; show the comparison table. 10y-3m stays default (rule 7).
 
-## 4A. Define "most accurate" and RANK the three spreads (Zandi Step 1) - DONE (Phase 4D)
-Per Zandi, define "most accurate" before ranking, then rank-order the three measures. Decided: keep his three named criteria (do NOT collapse into one composite - they genuinely conflict), report all three rankings, hit-rate as supporting detail. Confirmed scorecard:
+## 4A. Define "most accurate" and RANK the three spreads (Step 1) - DONE (Phase 4D)
+Per the brief, define "most accurate" before ranking, then rank-order the three measures. Decided: keep his three named criteria (do NOT collapse into one composite - they genuinely conflict), report all three rankings, hit-rate as supporting detail. Confirmed scorecard:
 1. ACCURACY (OOS AUC): 10y-ff (0.853) > 10y-3m (0.797) > 10y-2y (0.694).
 2. FEWEST FALSE POSITIVES (inverts/crosses without a recession within ~18 mo): 10y-3m (2) > 10y-2y (4) > 10y-ff (7).
-3. LONGEST LEAD TIME (mean months signal-to-onset): 10y-ff (12.5) > 10y-2y (11.8) > 10y-3m (9.1). Lead times of 9-12 mo match Zandi's ~9-12 intuition (external validation).
+3. LONGEST LEAD TIME (mean months signal-to-onset): 10y-ff (12.5) > 10y-2y (11.8) > 10y-3m (9.1). Lead times of 9-12 mo match the brief's ~9-12 intuition (external validation).
 Result: real trade-off, no single winner. 10y-ff is most accurate and earliest but cries wolf most (7 false positives); 10y-3m has the FEWEST false positives (2), which is exactly Goal 1(b) and independently justifies it as the default headline (reinforces rule 7). The ranking is reported in the dashboard, never used to silently re-crown the headline.
 
 ### Probability engine = probit on the chosen spread, SPREAD ONLY
-Probit -> probability of an NBER recession at the 12-month-ahead month (Estrella-Mishkin / NY Fed standard). Zandi Step 2: recession probability on the left, the curve on the right; try transformations of the curve (we test 6/12/18-month horizons). Phase 4 confirmed no added variable beats the spread OOS, so the engine stays spread-only. Report a LINEAR PROBABILITY MODEL beside it.
+Probit -> probability of an NBER recession at the 12-month-ahead month (Estrella-Mishkin / NY Fed standard). the brief Step 2: recession probability on the left, the curve on the right; try transformations of the curve (we test 6/12/18-month horizons). Phase 4 confirmed no added variable beats the spread OOS, so the engine stays spread-only. Report a LINEAR PROBABILITY MODEL beside it.
 
 ### Where the other variables live (NOT the probit - Phase 4; rule 10)
 All remaining variables power the VERDICT/character layer, the SCENARIO LAB, the CONDITIONS MATRIX (Section 10), and a "most resembles [year]" comparison. Each may be tested as a probit add-on under rule 9, but expect (per Phase 4) they inform character, not the probability.
@@ -65,13 +65,13 @@ An inverted curve ALWAYS warns via the probability. The fragility layer grades T
 ## 5. Build phases (one at a time, confirm before next)
 1-4. [DONE] Data pulled & monthly; three spreads + real house prices; probit + linear across three spreads x 6/12/18 lags (10y-3m@12mo primary, OOS ~0.80, 8 onsets); fragility variables tested - none beat the spread OOS, moved to the verdict/lab.
 4C. [DONE] Expanded to the FULL Section-3 set (TDSP, foreign-born LF + growth, job openings, debt growth). Built all three spread models as first-class with the comparison table.
-4D. [DONE] Zandi Step-1 scorecard (Section 4A): per-model accuracy + false-positive count + average lead time, with explicit rankings, surfaced as a table in the dashboard.
+4D. [DONE] Step 1 scorecard (Section 4A): per-model accuracy + false-positive count + average lead time, with explicit rankings, surfaced as a table in the dashboard.
 5. [DONE] Verdict/character layer (rule 10), three readings above; grades 2008-type credit-cycle risk; honestly under-calls policy/sector/exogenous recessions (the probability still warns via the inversion).
 6. [DONE] Static dashboard: probability gauge headline; character banner (never "false alarm"); fragility lights with values + thresholds; trajectory chart with BOTH lines (real-time prominent, fitted dashed) + recessions shaded; real-time AUC as headline performance.
 6B. [DONE] Interactive scenario lab: three-model selector; four yield sliders (fed funds, 3m, 2y, 10y) that draw the curve and compute all three spreads live; probability recomputes from the selected model's fitted probit; fragility sliders move only the character verdict; "your scenario most resembles [year]" on the full standardized vector (curve + fragility).
 6C. [DONE] Fixed a real data bug: pandas pct_change() was silently forward-filling missing months, fabricating house-price/debt/migration YoY readings for months with no underlying data. Fixed across all YoY features (honors rule 3). Reconciled the headline vs lab house-price value (both now -2.5% from the same as-of month). Added the lab note clarifying which sliders drive the verdict.
 6D. [TODO] Recession conditions matrix panel (pattern-tracker style), built from LIVE data and refreshed each run - see Section 10 for the full spec.
-7. [AFTER 6D] Self-updating WEEKLY. A scheduled GitHub Action re-pulls FRED, recomputes, and republishes to GitHub Pages once a week (Zandi suggested daily; we settled on weekly - the spread moves slowly at a 12-month horizon and most fragility series are quarterly, so weekly is plenty). FRED key as a GitHub secret, never in code.
+7. [AFTER 6D] Self-updating WEEKLY. A scheduled GitHub Action re-pulls FRED, recomputes, and republishes to GitHub Pages once a week (the brief suggested daily; we settled on weekly - the spread moves slowly at a 12-month horizon and most fragility series are quarterly, so weekly is plenty). FRED key as a GitHub secret, never in code.
 8. Validate + write up. Expanding-window OOS, AUC + onset counts + lead times. ADD a CALIBRATION / reliability check on the headline gauge (do readings near 12% actually precede recessions ~12% of the time? bin predictions and plot observed vs predicted) - this validates the number the whole dashboard hangs on and directly supports the 2022 framing (a high reading is a probability, not a certainty). Draft a Substack post each run.
 
 ## 6. Validation targets
@@ -91,7 +91,7 @@ An inverted curve ALWAYS warns via the probability. The fragility layer grades T
 ## 8. How to work with this user
 Non-technical: explain in plain English. One phase at a time; show results; wait. Commit to git each session. Simple, well-commented code.
 
-## 9. The economic narrative (Zandi) - what the paper must explain, and what the verdict/lab/matrix encodes
+## 9. The economic narrative (per the brief) - what the paper must explain, and what the verdict/lab/matrix encodes
 ### Why the yield curve predicts recessions (intuition)
 An inversion is when short-term rates rise above long-term rates, and it tends to LEAD recessions by ~3-18 months (average ~9-12). The mechanism runs through bond investors: when the Fed jacks up short rates to fight inflation, investors bet the Fed has overdone it and that a recession (and lower future inflation) is coming, so they buy long-term bonds, driving long yields DOWN. Fed pushing short up + investors pulling long down = the inversion. Because investors put real money behind their read, the signal is informative. (This is exactly what the lab's four yield sliders dramatize.)
 The un-inversion is different and is NOT a leading signal: once a recession hits, unemployment rises, the Fed cuts, short rates fall, and the curve re-steepens. By then you are already in/on top of the recession, so steepening is coincident, not a warning.

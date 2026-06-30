@@ -2,7 +2,7 @@
 phase4c_compare.py  -  PHASE 4C: the three yield-spread models, side by side as equals.
 
 Plain English:
-  Zandi's advice was "try at least three" curve measures and show them as real
+  The guidance was to "try at least three" curve measures and show them as real
   alternatives, not one star and two footnotes. So here we present all three on equal
   footing - each a probit on its own spread at the 12-month horizon - with the honest
   expanding-window (real-time) AUC and the number of recession onsets behind it.

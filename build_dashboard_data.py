@@ -161,7 +161,7 @@ def spread_model(name, col):
 
 lab_models = {name: spread_model(name, col) for name, col in LAB_SPREADS.items()}
 
-# --- Zandi Step-1 scorecard stats (Phase 4D): inversion episodes -> false positives + lead time ---
+# --- Step-1 scorecard stats (Phase 4D): inversion episodes -> false positives + lead time ---
 MERGE_GAP, LEAD_WINDOW = 3, 18
 def _episodes(col):
     s = df[col].dropna(); inv = s < 0

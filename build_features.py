@@ -68,7 +68,7 @@ df["hh_debt_gdp"]    = (df["hh_debt"] / 1000 / df["gdp"] * 100).ffill()
 df["corp_debt_gdp"]  = (df["corp_debt"] / 1000 / df["gdp"] * 100).ffill()
 
 # ---------------------------------------------------------------------------
-# 5. Debt GROWTH / credit impulse (Zandi: growth in debt outstanding as a proxy for
+# 5. Debt GROWTH / credit impulse (growth in debt outstanding as a proxy for
 #    credit availability). Year-over-year % growth of household and corporate debt.
 # ---------------------------------------------------------------------------
 df["hh_debt_growth"]   = df["hh_debt"].pct_change(12, fill_method=None) * 100

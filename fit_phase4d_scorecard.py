@@ -1,7 +1,7 @@
 """
-fit_phase4d_scorecard.py  -  PHASE 4D: rank the three spreads on Zandi's Step-1 criteria.
+fit_phase4d_scorecard.py  -  PHASE 4D: rank the three spreads on the Step-1 criteria.
 
-Zandi asked: before ranking the curve measures, agree what "most accurate" MEANS, then
+Before ranking the curve measures, agree what "most accurate" MEANS, then
 rank-order them. We report THREE criteria per spread (not just AUC):
 
   1. ACCURACY     - in-sample AUC and expanding-window OOS AUC (with onset count), plus a
@@ -110,7 +110,7 @@ def scorecard(col):
 
 cards = {name: scorecard(col) for name, col in SPREADS.items()}
 
-print("PHASE 4D - Zandi Step-1 scorecard (signal = curve inverts; lead window 18 months)\n")
+print("PHASE 4D - Step-1 scorecard (signal = curve inverts; lead window 18 months)\n")
 hdr = (f"{'spread':9s} | {'in-AUC':>6s} {'OOS':>6s} {'onsets':>6s} | {'inversions':>10s} "
        f"{'false+':>6s} {'hit-rate':>8s} | {'lead mean':>9s} {'range':>9s}")
 print(hdr); print("-" * len(hdr))
