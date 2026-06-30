@@ -264,6 +264,26 @@ def matrix_cell(key, col, fmt, row):
     return {"value": fmt(float(v)), "danger": bool(is_danger(key, float(v))), "na": False}
 
 matrix_rows = []
+
+# Early yield-curve era (1953+). One row per recession, ref = deepest / least-positive
+# 10y-3m in the 24 months before onset. Honest point: at MONTHLY resolution the curve did
+# NOT invert before 1957/1960 (only flattened to ~+0.2) - shown GREEN with a recession
+# outcome, not fudged red. These were low-leverage Fed-tightening/oil-shock recessions.
+EARLY = [
+    ("1957",    "1957-08-01", "Recession 1957-58 (Fed tightening)"),
+    ("1960",    "1960-04-01", "Recession 1960-61 (Fed tightening)"),
+    ("1970",    "1969-12-01", "Recession 1970 (Fed tightening)"),
+    ("1973-75", "1973-11-01", "Recession 1973-75 (oil shock)"),
+]
+for label, onset, outcome in EARLY:
+    o = pd.Timestamp(onset)
+    w = df.loc[o - pd.DateOffset(months=24):o - pd.DateOffset(months=1), "spread_10y_3m"].dropna()
+    r = df.loc[w.idxmin()]
+    matrix_rows.append({
+        "label": label, "outcome": outcome, "outcome_rec": True, "today": False,
+        "cells": {k: matrix_cell(k, col, fmt, r) for (k, col, _, _, _, fmt) in MATRIX_COLS},
+    })
+
 for d_, (label, outcome) in EPISODES_LAB.items():
     r = df.loc[pd.Timestamp(d_)]
     rec_followed = ("recession" in outcome.lower()) and ("no recession" not in outcome.lower())
