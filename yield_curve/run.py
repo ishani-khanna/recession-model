@@ -29,6 +29,7 @@ from .models import probit, validation
 # the report so a single command refreshes BOTH the report and the interactive dashboard.
 _DASHBOARD_STEPS = [
     "build_dataset.py", "build_features.py", "build_verdict.py", "build_dashboard_data.py",
+    "build_two_clock_data.py",   # two-clock + term-premium panel -> docs/two_clock.html
 ]
 
 

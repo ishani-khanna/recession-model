@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<!--
+  Two-clock recession tracker + term-premium diagnostic. SELF-CONTAINED: data embedded
+  below, charts drawn with inline SVG, no external libraries. Regenerate with
+  build_two_clock_data.py (it injects the data and writes docs/two_clock.html).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two-Clock Recession Tracker + Term Premium</title>
+<style>
+  :root{
+    --ink:#16213e; --muted:#5b6478; --line:#e3e6ee; --bg:#ffffff; --panel:#f7f8fb;
+    --blue:#2563eb; --teal:#0d9488; --grayline:#aab2c5; --band:#dfe3ec;
+    --green:#16a34a; --amber:#e08a00; --red:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 22px 60px}
+  h1{font-size:23px;margin:0 0 2px}
+  .sub{color:var(--muted);margin:0 0 22px}
+  a.back{color:var(--blue);text-decoration:none;font-size:13px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:20px}
+  .card h2{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+  .clocks{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:640px){.clocks{grid-template-columns:1fr}}
+  .clock{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 10px;text-align:center}
+  .clock .lbl{font-weight:600;font-size:15px}
+  .clock .subq{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .clock .num{font-size:40px;font-weight:700;margin-top:-6px}
+  .clock .model{color:var(--muted);font-size:11.5px;margin-top:2px}
+  .note{color:var(--muted);font-size:12.5px;margin-top:12px;line-height:1.55}
+  .tp-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .tp-val{font-size:34px;font-weight:700}
+  .badge{display:inline-block;padding:3px 11px;border-radius:999px;font-size:12.5px;font-weight:600;border:1px solid}
+  .b-green{background:#eafaf0;border-color:#bfe9cf;color:#10632f}
+  .b-amber{background:#fff5e6;border-color:#ffd9a3;color:#8a4b00}
+  .b-red{background:#fdecec;border-color:#f6bcbc;color:#a01818}
+  .pct{color:var(--muted);font-size:13px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:12.5px;margin-top:8px}
+  .legend i{display:inline-block;width:22px;height:0;vertical-align:middle;margin-right:6px}
+  svg{display:block;width:100%;height:auto}
+  text{fill:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">&larr; back to the main dashboard</a>
+  <h1>Two-Clock Recession Tracker</h1>
+  <p class="sub" id="asof"></p>
+
+  <!-- TWO CLOCKS -->
+  <div class="card">
+    <h2>Two clocks — different questions, different horizons</h2>
+    <div class="clocks">
+      <div class="clock">
+        <svg viewBox="0 0 240 140" id="gaugeFlag"></svg>
+        <div class="num" id="numFlag"></div>
+        <div class="lbl" id="lblFlag"></div>
+        <div class="subq" id="subFlag"></div>
+        <div class="model">flagship — term spread only</div>
+      </div>
+      <div class="clock">
+        <svg viewBox="0 0 240 140" id="gaugeAug"></svg>
+        <div class="num" id="numAug"></div>
+        <div class="lbl" id="lblAug"></div>
+        <div class="subq" id="subAug"></div>
+        <div class="model">augmented — term spread + Baa−Aa credit</div>
+      </div>
+    </div>
+    <p class="note" id="clockNote"></p>
+  </div>
+
+  <!-- TERM-PREMIUM TRACKER -->
+  <div class="card">
+    <h2>Term-premium tracker — is the curve signal clean or distorted?</h2>
+    <div class="tp-head">
+      <span class="tp-val" id="tpVal"></span>
+      <span class="badge" id="tpBadge"></span>
+      <span class="pct" id="tpPct"></span>
+    </div>
+    <p class="note" id="tpRead" style="margin-top:8px"></p>
+    <svg id="tpChart" viewBox="0 0 1000 400" aria-label="term premium history"></svg>
+    <div class="legend">
+      <span><i style="border-top:3px solid var(--teal)"></i>10Y term premium (pp, left)</span>
+      <span><i style="border-top:3px solid var(--red);opacity:.5"></i>flagship recession probability (%, right)</span>
+      <span><i style="border-top:12px solid var(--band);height:0"></i>NBER recession</span>
+      <span><i style="border-top:10px solid #fde2e2;height:0"></i>compressed term premium</span>
+    </div>
+    <p class="note" id="tpDiag"></p>
+  </div>
+</div>
+
+<script>
+const DATA = __TWO_CLOCK_DATA__;
+
+const badgeClass = c => c === "compressed" ? "b-red" : (c === "elevated" ? "b-green" : "b-green");
+const lvlColor = p => p < 25 ? "var(--green)" : (p < 50 ? "var(--amber)" : "var(--red)");
+
+/* ---------- header ---------- */
+document.getElementById("asof").textContent =
+  "Live daily curve as of " + (DATA.as_of_daily || "n/a") +
+  ".  Diagnostic layer — the term premium is not in the model; it flags when the raw curve signal may be distorted.";
+
+/* ---------- gauge (semicircle) ---------- */
+function gauge(el, p){
+  const cx=120, cy=125, r=92, col=lvlColor(p);
+  const ang=Math.PI*(1-p/100), pol=a=>[cx+r*Math.cos(a), cy-r*Math.sin(a)];
+  const arc=(a0,a1,c,w)=>{const[x0,y0]=pol(a0),[x1,y1]=pol(a1);const lg=(a0-a1)>Math.PI?1:0;
+    return `<path d="M${x0} ${y0} A${r} ${r} 0 ${lg} 1 ${x1} ${y1}" fill="none" stroke="${c}" stroke-width="15" stroke-linecap="round"/>`;};
+  const[nx,ny]=pol(ang);
+  document.getElementById(el).innerHTML =
+    arc(Math.PI,0,"#e7eaf1",15)+arc(Math.PI,ang,col,15)
+    +`<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="3"/>`
+    +`<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/>`
+    +`<text x="24" y="138" font-size="11" fill="var(--muted)">0%</text>`
+    +`<text x="200" y="138" font-size="11" fill="var(--muted)">100%</text>`;
+}
+(function(){
+  const c=DATA.clocks;
+  gauge("gaugeFlag", c.flag12); gauge("gaugeAug", c.aug3);
+  const setNum=(id,v)=>{const e=document.getElementById(id);e.textContent=v+"%";e.style.color=lvlColor(v);};
+  setNum("numFlag", c.flag12); setNum("numAug", c.aug3);
+  document.getElementById("lblFlag").textContent=c.flag_label;
+  document.getElementById("subFlag").textContent=c.flag_sub;
+  document.getElementById("lblAug").textContent=c.aug_label;
+  document.getElementById("subAug").textContent=c.aug_sub;
+  document.getElementById("clockNote").innerHTML =
+    "The augmented model adds the Baa−Aa credit spread, which <b>sharpens the near-term read</b> "
+    + "but is <b>not</b> used at 12 months (where it degrades the term spread). Inputs: term spread "
+    + `<b>${c.term>=0?"+":""}${c.term} pp</b> (bond-equivalent), Baa−Aa credit <b>${c.credit>=0?"+":""}${c.credit}</b> `
+    + `(as of ${c.credit_date}).`;
+})();
+
+/* ---------- term-premium headline ---------- */
+(function(){
+  const t=DATA.term_premium;
+  document.getElementById("tpVal").textContent=(t.tp_current>=0?"+":"")+t.tp_current+" pp";
+  const b=document.getElementById("tpBadge"); b.textContent=t.tp_class; b.className="badge "+badgeClass(t.tp_class);
+  document.getElementById("tpPct").textContent="~"+t.tp_percentile+"th percentile since 1990";
+  const clean = t.tp_class!=="compressed";
+  document.getElementById("tpRead").innerHTML = clean
+    ? "The term premium is <b>"+t.tp_class+"</b>, so today's curve is a <b>clean signal</b> — an inversion "
+      + "would mean what it usually means. When it is <b>compressed</b> (as in 2022–23, ~"+t.tp_2022_23+" pp), "
+      + "a given inversion <b>overstates</b> recession odds — the false-alarm signature."
+    : "The term premium is <b>compressed</b>, so a given inversion <b>overstates</b> recession odds "
+      + "(the 2022–23 false-alarm signature): read the raw curve signal with caution.";
+  document.getElementById("tpDiag").innerHTML =
+    "<b>Diagnostic / context — the term premium is NOT in the model.</b> It flags when the raw curve signal "
+    + "may be distorted (used as a veto in the experimental three-signal rule). Uses the Kim–Wright 10Y term "
+    + "premium (FRED THREEFYTP10). Compressed 2020–21 average ~" + t.tp_compressed_2020_21 + " pp.";
+})();
+
+/* ---------- term-premium history chart ---------- */
+(function(){
+  const W=1000,H=400,m={t:16,r:44,b:30,l:44};
+  const pw=W-m.l-m.r, ph=H-m.t-m.b;
+  const d=DATA.series.dates, N=d.length;
+  const tp=DATA.series.term_premium, fp=DATA.series.flagship_prob;
+  const idx={}; d.forEach((s,i)=>idx[s]=i);
+  const x=i=> m.l + (N<2?0:(i/(N-1))*pw);
+  // left axis: term premium
+  const tpVals=tp.filter(v=>v!==null);
+  const tpMin=Math.min(-1, Math.floor(Math.min(...tpVals))), tpMax=Math.max(3, Math.ceil(Math.max(...tpVals)));
+  const yL=v=> m.t + (1-(v-tpMin)/(tpMax-tpMin))*ph;
+  const yR=v=> m.t + (1-v/100)*ph;        // right axis: probability 0-100
+  let s="";
+
+  // recession bands
+  DATA.recessions.forEach(rc=>{
+    let a=idx[rc.start], b=idx[rc.end];
+    if(a===undefined&&b===undefined) return;
+    if(a===undefined)a=0; if(b===undefined)b=N-1;
+    s+=`<rect x="${x(a)}" y="${m.t}" width="${Math.max(1,x(b)-x(a))}" height="${ph}" fill="var(--band)"/>`;
+  });
+  // compressed term-premium stretches (tp < 0) shaded light red
+  let runStart=null;
+  tp.forEach((v,i)=>{
+    const neg = v!==null && v<0;
+    if(neg && runStart===null) runStart=i;
+    if((!neg||i===N-1) && runStart!==null){ const end=neg?i:i-1;
+      s+=`<rect x="${x(runStart)}" y="${m.t}" width="${Math.max(1,x(end)-x(runStart))}" height="${ph}" fill="#fde2e2" opacity="0.6"/>`;
+      runStart=null; }
+  });
+  // zero line (term premium)
+  s+=`<line x1="${m.l}" y1="${yL(0)}" x2="${W-m.r}" y2="${yL(0)}" stroke="#c9cfdb" stroke-dasharray="4 3"/>`;
+  // left y ticks
+  for(let v=tpMin; v<=tpMax; v++){
+    s+=`<text x="${m.l-6}" y="${yL(v)+4}" text-anchor="end" font-size="10" fill="var(--teal)">${v>0?"+":""}${v}</text>`;
+  }
+  // right y ticks (%)
+  [0,25,50,75,100].forEach(v=>{ s+=`<text x="${W-m.r+6}" y="${yR(v)+4}" font-size="10" fill="var(--red)" opacity="0.8">${v}%</text>`;});
+  // x year ticks (decades)
+  let lastDec=null;
+  d.forEach((str,i)=>{ const yr=+str.slice(0,4);
+    if(yr%10===0 && str.slice(5)==="01" && yr!==lastDec){ lastDec=yr;
+      s+=`<line x1="${x(i)}" y1="${m.t}" x2="${x(i)}" y2="${m.t+ph}" stroke="var(--line)"/>`;
+      s+=`<text x="${x(i)}" y="${H-10}" text-anchor="middle" font-size="10" fill="var(--muted)">${yr}</text>`;}
+  });
+  // path helper (breaks on null)
+  const path=(arr,y)=>{let str="",pen=false; arr.forEach((v,i)=>{ if(v===null){pen=false;return;}
+    str+=(pen?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)+" "; pen=true;}); return str;};
+  // flagship probability (light red, right axis) then term premium (teal, left axis)
+  s+=`<path d="${path(fp,yR)}" fill="none" stroke="var(--red)" stroke-width="1.6" opacity="0.45"/>`;
+  s+=`<path d="${path(tp,yL)}" fill="none" stroke="var(--teal)" stroke-width="2.2"/>`;
+
+  // markers: 2022-23 low + today
+  const t=DATA.term_premium;
+  const lowI=idx[t.tp_2022_23_date];
+  if(lowI!==undefined){ s+=`<circle cx="${x(lowI)}" cy="${yL(t.tp_2022_23)}" r="4" fill="var(--red)"/>`
+    +`<text x="${x(lowI)}" y="${yL(t.tp_2022_23)-8}" text-anchor="middle" font-size="10" fill="var(--red)">2022–23 low (${t.tp_2022_23})</text>`;}
+  // today = last non-null tp
+  let lastI=N-1; while(lastI>0 && tp[lastI]===null) lastI--;
+  s+=`<circle cx="${x(lastI)}" cy="${yL(tp[lastI])}" r="4" fill="var(--teal)"/>`
+    +`<text x="${x(lastI)}" y="${yL(tp[lastI])-8}" text-anchor="end" font-size="10" fill="var(--teal)">today (${tp[lastI]>=0?"+":""}${tp[lastI]})</text>`;
+
+  document.getElementById("tpChart").innerHTML=s;
+})();
+</script>
+</body>
+</html>
