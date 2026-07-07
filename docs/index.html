@@ -1,550 +1,237 @@
 <!DOCTYPE html>
 <!--
-  Recession-risk dashboard (Phase 6). SELF-CONTAINED: all data is embedded below and
-  all charts are drawn with inline SVG - no internet, no external libraries.
-  Regenerate by running build_dashboard_data.py (it injects the data and writes this file
-  to output/dashboard.html).
+  US Recession Tracker — single self-contained page mirroring the report. Data embedded below,
+  charts drawn with inline SVG, no external libraries. Regenerate with build_two_clock_data.py.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>US Recession Risk — Yield-Curve Model</title>
+<title>US Recession Tracker — Three-Signal Rule</title>
 <style>
   :root{
     --ink:#16213e; --muted:#5b6478; --line:#e3e6ee; --bg:#ffffff; --panel:#f7f8fb;
-    --blue:#2563eb; --grayline:#aab2c5; --band:#dfe3ec;
+    --blue:#2563eb; --teal:#0d9488; --band:#dfe3ec;
     --green:#16a34a; --amber:#e08a00; --red:#dc2626;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--ink);
-       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:1040px;margin:0 auto;padding:28px 22px 60px}
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1000px;margin:0 auto;padding:26px 22px 64px}
   h1{font-size:24px;margin:0 0 2px}
-  .sub{color:var(--muted);margin:0 0 22px}
-  .grid{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:stretch}
-  @media(max-width:780px){.grid{grid-template-columns:1fr}}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
-  .card h2{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
-  .gauge-wrap{display:flex;flex-direction:column;align-items:center}
-  .gauge-num{font-size:46px;font-weight:700;margin-top:-8px}
-  .gauge-lbl{color:var(--muted);font-size:12.5px;text-align:center;margin-top:2px}
-  .banner{border-radius:12px;padding:14px 16px;font-weight:600;margin-bottom:14px;border:1px solid}
-  .banner small{display:block;font-weight:400;margin-top:4px;line-height:1.45}
-  .b-clear{background:#eafaf0;border-color:#bfe9cf;color:#10632f}
-  .b-nocc {background:#fff5e6;border-color:#ffd9a3;color:#8a4b00}
-  .b-warn {background:#fdecec;border-color:#f6bcbc;color:#a01818}
-  .lights{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  @media(max-width:520px){.lights{grid-template-columns:1fr}}
-  .light{display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--line);
-         border-radius:10px;padding:10px 12px}
-  .dot{width:12px;height:12px;border-radius:50%;margin-top:4px;flex:0 0 auto}
-  .light .nm{font-weight:600;font-size:13.5px}
-  .light .vl{color:var(--ink);font-size:13px}
-  .light .th{color:var(--muted);font-size:11.5px}
-  .chart-card{margin-top:22px}
-  .legend{display:flex;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:12.5px;margin-top:8px}
-  .legend i{display:inline-block;width:22px;height:0;vertical-align:middle;margin-right:6px}
-  .note{color:var(--muted);font-size:12.5px;margin-top:18px;line-height:1.55}
+  .sub{color:var(--muted);margin:0 0 6px;font-size:13px}
+  .headline{border-radius:14px;padding:16px 18px;margin:14px 0 8px;border:1px solid;font-weight:700;font-size:20px}
+  .headline small{display:block;font-weight:500;font-size:13.5px;margin-top:4px;color:var(--muted)}
+  .h-clear{background:#eafaf0;border-color:#bfe9cf;color:#10632f}
+  .h-fire{background:#fdecec;border-color:#f6bcbc;color:#a01818}
+  .plain{font-size:14px;margin:4px 0 0}
+  h2{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px}
+  .cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:760px){.cards{grid-template-columns:1fr}}
+  .sig{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px;text-align:center}
+  .sig .no{color:var(--muted);font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .sig .nm{font-weight:600;font-size:15px;margin-top:2px}
+  .sig .subq{color:var(--muted);font-size:12px;margin-top:1px;min-height:32px}
+  .sig .big{font-size:36px;font-weight:700;margin:-2px 0}
+  .sig .model{color:var(--muted);font-size:11px;margin-top:2px}
+  .sig .gate{font-size:11.5px;margin-top:6px}
+  .met-yes{color:var(--red);font-weight:700}
+  .met-no{color:var(--green);font-weight:700}
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid;margin-top:6px}
+  .b-green{background:#eafaf0;border-color:#bfe9cf;color:#10632f}
+  .b-red{background:#fdecec;border-color:#f6bcbc;color:#a01818}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+  th,td{border-bottom:1px solid var(--line);padding:7px 9px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:600;font-size:12px}
+  td.inv-yes{color:var(--red);font-weight:600}
+  .note{color:var(--muted);font-size:12.5px;margin-top:10px;line-height:1.55}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:8px}
+  .legend i{display:inline-block;width:20px;height:0;vertical-align:middle;margin-right:5px}
   svg{display:block;width:100%;height:auto}
   text{fill:var(--ink)}
-  /* ---- scenario lab ---- */
-  .lab{margin-top:22px}
-  .lab h3{font-size:14px;margin:18px 0 10px}
-  .lab-models{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-  .mbtn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 12px;cursor:pointer;
-        font:inherit;font-size:13px;color:var(--ink);transition:all .12s}
-  .mbtn small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
-  .mbtn.active{border-color:var(--blue);background:#eef3ff;color:var(--blue);font-weight:600}
-  .mbtn.active small{color:var(--blue)}
-  .lab-grid{display:grid;grid-template-columns:1fr 300px;gap:22px;align-items:start;margin-top:8px}
-  @media(max-width:780px){.lab-grid{grid-template-columns:1fr}}
-  .sld{margin:9px 0}
-  .sld label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px}
-  .sld label b{font-variant-numeric:tabular-nums}
-  .sld input[type=range]{width:100%}
-  .frag-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 22px}
-  @media(max-width:560px){.frag-grid{grid-template-columns:1fr}}
-  .spreadbox{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:13px}
-  .spreadbox span{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
-  .spreadbox b{font-variant-numeric:tabular-nums}
-  .resembles{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
-  .resembles b{font-size:15px}
-  .lab-gauge-num{font-size:34px;font-weight:700;text-align:center;margin-top:-6px}
-  .warnlabel{font-size:12px;color:var(--muted)}
-  table.sc{width:100%;border-collapse:collapse;font-size:13px}
-  table.sc th,table.sc td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--line)}
-  table.sc th:first-child,table.sc td:first-child{text-align:left}
-  table.sc th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
-  table.sc tr.def td{background:#eef3ff}
-  table.sc td.best{color:var(--green);font-weight:700}
-  .rankline{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.5}
-  /* ---- conditions matrix ---- */
-  table.mx{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
-  table.mx th,table.mx td{padding:6px 7px;text-align:center;border-bottom:1px solid var(--line)}
-  table.mx th:first-child,table.mx td:first-child{text-align:left;white-space:nowrap}
-  table.mx thead .blk{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);
-       border-bottom:2px solid var(--line)}
-  table.mx thead .blk.lead{color:#1b4ed8}
-  table.mx thead .blk.coin{color:#8a4b00}
-  table.mx th.col{font-size:11px;color:var(--ink);font-weight:600;line-height:1.2}
-  table.mx th.col small{display:block;color:var(--muted);font-weight:400;font-size:10px}
-  td.dng{background:#fdecec;color:#a01818;font-weight:700}
-  td.ben{background:#eafaf0;color:#10632f}
-  td.na{color:#c2c7d2}
-  td.out-rec{background:#fdecec;color:#a01818;font-weight:600;text-align:left}
-  td.out-no{background:#eafaf0;color:#10632f;text-align:left}
-  td.out-today{background:#eef3ff;color:#1b4ed8;font-weight:600;text-align:left}
-  table.mx tr.today td{border-top:2px solid var(--blue);font-weight:600}
-  .divider{border-left:2px solid var(--line)}
+  .src{font-size:12px;color:var(--muted);margin-top:22px;border-top:1px solid var(--line);padding-top:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>US Recession Risk — Yield-Curve Model</h1>
-  <p class="sub" id="asof"></p>
-  <p style="margin-top:-14px"><a href="two_clock.html" style="color:#2563eb;text-decoration:none;font-size:13.5px">→ Three-signal recession rule &amp; term-premium trust check</a></p>
+  <h1>US Recession Tracker</h1>
+  <p class="sub" id="sub"></p>
 
-  <div class="grid">
-    <!-- LEFT: headline probability gauge -->
-    <div class="card gauge-wrap">
-      <h2>Recession probability (12 months)</h2>
-      <svg id="gauge" viewBox="0 0 240 150" aria-label="probability gauge"></svg>
-      <div class="gauge-num" id="gaugeNum"></div>
-      <div class="gauge-lbl" id="gaugeLbl"></div>
-    </div>
+  <div class="headline" id="headline"></div>
+  <p class="plain" id="plain"></p>
 
-    <!-- RIGHT: character banner + fragility lights -->
-    <div class="card">
-      <h2>Character of the risk</h2>
-      <div id="banner" class="banner"></div>
-      <p class="note" style="margin-top:10px">
-        <b>Term-premium check.</b> When the term premium is unusually low (even negative), a given
-        inversion <i>overstates</i> recession odds — the leading explanation for the 2022–24 false
-        alarm. Today it is near normal, so the curve reads as a clean signal
-        (<a href="two_clock.html" style="color:#2563eb;text-decoration:none">see the trust check</a>).
-      </p>
-      <h2>Fragility signals (values vs judgment-call thresholds)</h2>
-      <div class="lights" id="lights"></div>
-    </div>
+  <h2>The three signals</h2>
+  <div class="cards" id="cards"></div>
+  <p class="note" id="ruleNote"></p>
+
+  <h2>Today's curve — the model inputs</h2>
+  <table id="inputs"></table>
+  <p class="note">The 3-month bill (discount-basis) is converted to a coupon-equivalent (bond-equivalent)
+     yield before differencing, matching the 10Y constant-maturity leg and the NY Fed convention.</p>
+
+  <h2>Recession probability by spread and horizon</h2>
+  <table id="probtable"></table>
+  <p class="note">Full-sample probit fits evaluated at the live daily spread. The flagship reading is the
+     10Y−3M column at 12 months; discrimination peaks at the 12–18-month lead.</p>
+
+  <h2>Term-premium trust check — why signal 3 matters</h2>
+  <svg id="tpChart" viewBox="0 0 1000 360" aria-label="term premium history"></svg>
+  <div class="legend">
+    <span><i style="border-top:3px solid var(--teal)"></i>term premium (pp, left)</span>
+    <span><i style="border-top:3px solid var(--red);opacity:.5"></i>flagship probability (%, right)</span>
+    <span><i style="border-top:12px solid var(--band);height:0"></i>NBER recession</span>
+    <span><i style="border-top:10px solid #fde2e2;height:0"></i>compressed (below 50 bp gate)</span>
   </div>
+  <p class="note" id="tpNote"></p>
 
-  <!-- TRAJECTORY -->
-  <div class="card chart-card">
-    <h2>Model probability over time — recessions shaded</h2>
-    <svg id="chart" viewBox="0 0 1000 430" aria-label="trajectory chart"></svg>
-    <div class="legend">
-      <span><i style="border-top:3px solid var(--blue)"></i>Real-time (expanding-window) — the honest track record</span>
-      <span><i style="border-top:2px dashed var(--grayline)"></i>Fitted (uses all data) — flattering reference</span>
-      <span><i style="border-top:12px solid var(--band);height:0"></i>NBER recession</span>
-    </div>
-    <p class="note" id="chartnote"></p>
-  </div>
+  <h2>Flagship recession probability over time</h2>
+  <svg id="traj" viewBox="0 0 1000 340" aria-label="flagship probability"></svg>
+  <p class="note">The 12-month probability from the 10Y−3M term spread (full-sample probit), NBER recessions
+     shaded. Out-of-sample AUC ≈ 0.80 over 8 modern onsets — the honest, validated track record.</p>
 
-  <!-- SCENARIO LAB (Phase 6B) -->
-  <div class="card lab">
-    <h2>Scenario lab — build your own curve and economy</h2>
-    <p class="note" style="margin-top:0">
-      Pick a model, then drag the four yields to reshape the curve and watch the probability
-      respond live. Then drag the fragility inputs: they change the <b>character</b> of the risk,
-      <b>not</b> the probability — that separation is the whole thesis.
-    </p>
-
-    <div class="lab-models" id="labModels"></div>
-
-    <h3 style="margin-top:14px">Ranking the three curve measures</h3>
-    <div id="scorecard"></div>
-
-    <div class="lab-grid">
-      <div>
-        <h3>The yield curve — drag the short end up (Fed tightening) or the long end down</h3>
-        <svg id="curveSvg" viewBox="0 0 520 220" aria-label="yield curve"></svg>
-        <div id="yieldSliders"></div>
-        <div class="spreadbox" id="spreadbox"></div>
-      </div>
-      <div>
-        <h3>Scenario probability</h3>
-        <svg id="labGauge" viewBox="0 0 240 150" aria-label="scenario gauge"></svg>
-        <div class="lab-gauge-num" id="labGaugeNum"></div>
-        <div id="labBanner" class="banner" style="margin-top:12px"></div>
-      </div>
-    </div>
-
-    <h3>Fragility inputs — these flip the character, never the probability</h3>
-    <p class="note" style="margin-top:-2px">
-      The character banner uses only the three variables in the verdict rule: <b>debt-to-income,
-      real house prices, and the credit spread</b>. The other three (debt growth, SLOOS, migration)
-      shape the "most resembles [year]" match below, but do not change the banner — by design.
-    </p>
-    <div class="frag-grid" id="fragSliders"></div>
-
-    <div class="resembles" id="resembles"></div>
-  </div>
-
-  <!-- RECESSION CONDITIONS MATRIX (Phase 6D) -->
-  <div class="card">
-    <h2>Recession conditions matrix — which ingredients were in place at each inversion</h2>
-    <p class="note" style="margin-top:0">
-      Each row is a historical yield-curve inversion (at its deepest month), plus a live
-      <b>Today</b> row. Compare <b>2007</b> and <b>2023</b>: both inverted with falling real
-      house prices, but household leverage was <b>133%</b> of income in 2007 versus <b>95%</b>
-      in 2023. That leverage gap is the cleanest single piece of evidence for why 2022–24
-      inverted yet produced no recession.
-    </p>
-    <div style="overflow-x:auto"><table class="mx" id="matrix"></table></div>
-    <p class="note" id="matrixnote"></p>
-  </div>
-
-  <p class="note">
-    <b>How to read this.</b> The big number is the probability engine — a probit on the 10-year
-    minus 3-month Treasury spread alone (the Estrella-Mishkin / NY Fed standard). It gives a
-    <b>probability, not a certainty</b>, and a deep inversion <b>can</b> be a <b>false alarm</b>.
-    The leading explanation for the 2022–24 episode is <b>term-premium compression</b>: when the
-    term premium is unusually low (even negative), a given inversion <i>overstates</i> recession
-    odds relative to the history the model was trained on — so the raw curve signal should be read
-    conditioned on the term premium (see the
-    <a href="two_clock.html" style="color:#2563eb;text-decoration:none">term-premium trust check</a>).
-    The fragility signals and the conditions matrix below are <b>supporting real-economy context</b>
-    — the 2007-vs-2023 leverage contrast — not the headline. Thresholds shown are documented judgment
-    calls, not fitted parameters. The two lines on the chart are the point: the rosy <i>fitted</i>
-    line has seen all history; the prominent <i>real-time</i> line shows what the model would actually
-    have said month by month — its AUC is the honest headline.
-  </p>
+  <h2>How to read this — caveats</h2>
+  <p class="note" id="caveats"></p>
+  <p class="src" id="src"></p>
 </div>
 
 <script>
-const DATA = {"as_of": "2026-05", "gauge": {"probability": 12.4, "label": "current model probability (all data through May 2026)"}, "character": {"short": "ALL CLEAR", "full": "The yield curve is not inverted, so the spread is not signalling a recession warning.", "class": "clear"}, "lights": [{"name": "Curve inverted", "value": "+0.88 pp", "threshold": "warns if < 0.00 pp", "on": false}, {"name": "Household debt high", "value": "90% of income", "threshold": "warns if > 110%", "on": false}, {"name": "Real house prices falling", "value": "-2.5% YoY", "threshold": "warns if < -2%", "on": true}, {"name": "Credit spread spiking", "value": "1.62 pp", "threshold": "warns if > 2.50 pp", "on": false}], "auc": {"realtime": 0.797, "onsets": 8, "insample": 0.822, "rt_start": "1964", "rt_end": "2025"}, "series": {"dates": ["1953-04", "1953-05", "1953-06", "1953-07", "1953-08", "1953-09", "1953-10", "1953-11", "1953-12", "1954-01", "1954-02", "1954-03", "1954-04", "1954-05", "1954-06", "1954-07", "1954-08", "1954-09", "1954-10", "1954-11", "1954-12", "1955-01", "1955-02", "1955-03", "1955-04", "1955-05", "1955-06", "1955-07", "1955-08", "1955-09", "1955-10", "1955-11", "1955-12", "1956-01", "1956-02", "1956-03", "1956-04", "1956-05", "1956-06", "1956-07", "1956-08", "1956-09", "1956-10", "1956-11", "1956-12", "1957-01", "1957-02", "1957-03", "1957-04", "1957-05", "1957-06", "1957-07", "1957-08", "1957-09", "1957-10", "1957-11", "1957-12", "1958-01", "1958-02", "1958-03", "1958-04", "1958-05", "1958-06", "1958-07", "1958-08", "1958-09", "1958-10", "1958-11", "1958-12", "1959-01", "1959-02", "1959-03", "1959-04", "1959-05", "1959-06", "1959-07", "1959-08", "1959-09", "1959-10", "1959-11", "1959-12", "1960-01", "1960-02", "1960-03", "1960-04", "1960-05", "1960-06", "1960-07", "1960-08", "1960-09", "1960-10", "1960-11", "1960-12", "1961-01", "1961-02", "1961-03", "1961-04", "1961-05", "1961-06", "1961-07", "1961-08", "1961-09", "1961-10", "1961-11", "1961-12", "1962-01", "1962-02", "1962-03", "1962-04", "1962-05", "1962-06", "1962-07", "1962-08", "1962-09", "1962-10", "1962-11", "1962-12", "1963-01", "1963-02", "1963-03", "1963-04", "1963-05", "1963-06", "1963-07", "1963-08", "1963-09", "1963-10", "1963-11", "1963-12", "1964-01", "1964-02", "1964-03", "1964-04", "1964-05", "1964-06", "1964-07", "1964-08", "1964-09", "1964-10", "1964-11", "1964-12", "1965-01", "1965-02", "1965-03", "1965-04", "1965-05", "1965-06", "1965-07", "1965-08", "1965-09", "1965-10", "1965-11", "1965-12", "1966-01", "1966-02", "1966-03", "1966-04", "1966-05", "1966-06", "1966-07", "1966-08", "1966-09", "1966-10", "1966-11", "1966-12", "1967-01", "1967-02", "1967-03", "1967-04", "1967-05", "1967-06", "1967-07", "1967-08", "1967-09", "1967-10", "1967-11", "1967-12", "1968-01", "1968-02", "1968-03", "1968-04", "1968-05", "1968-06", "1968-07", "1968-08", "1968-09", "1968-10", "1968-11", "1968-12", "1969-01", "1969-02", "1969-03", "1969-04", "1969-05", "1969-06", "1969-07", "1969-08", "1969-09", "1969-10", "1969-11", "1969-12", "1970-01", "1970-02", "1970-03", "1970-04", "1970-05", "1970-06", "1970-07", "1970-08", "1970-09", "1970-10", "1970-11", "1970-12", "1971-01", "1971-02", "1971-03", "1971-04", "1971-05", "1971-06", "1971-07", "1971-08", "1971-09", "1971-10", "1971-11", "1971-12", "1972-01", "1972-02", "1972-03", "1972-04", "1972-05", "1972-06", "1972-07", "1972-08", "1972-09", "1972-10", "1972-11", "1972-12", "1973-01", "1973-02", "1973-03", "1973-04", "1973-05", "1973-06", "1973-07", "1973-08", "1973-09", "1973-10", "1973-11", "1973-12", "1974-01", "1974-02", "1974-03", "1974-04", "1974-05", "1974-06", "1974-07", "1974-08", "1974-09", "1974-10", "1974-11", "1974-12", "1975-01", "1975-02", "1975-03", "1975-04", "1975-05", "1975-06", "1975-07", "1975-08", "1975-09", "1975-10", "1975-11", "1975-12", "1976-01", "1976-02", "1976-03", "1976-04", "1976-05", "1976-06", "1976-07", "1976-08", "1976-09", "1976-10", "1976-11", "1976-12", "1977-01", "1977-02", "1977-03", "1977-04", "1977-05", "1977-06", "1977-07", "1977-08", "1977-09", "1977-10", "1977-11", "1977-12", "1978-01", "1978-02", "1978-03", "1978-04", "1978-05", "1978-06", "1978-07", "1978-08", "1978-09", "1978-10", "1978-11", "1978-12", "1979-01", "1979-02", "1979-03", "1979-04", "1979-05", "1979-06", "1979-07", "1979-08", "1979-09", "1979-10", "1979-11", "1979-12", "1980-01", "1980-02", "1980-03", "1980-04", "1980-05", "1980-06", "1980-07", "1980-08", "1980-09", "1980-10", "1980-11", "1980-12", "1981-01", "1981-02", "1981-03", "1981-04", "1981-05", "1981-06", "1981-07", "1981-08", "1981-09", "1981-10", "1981-11", "1981-12", "1982-01", "1982-02", "1982-03", "1982-04", "1982-05", "1982-06", "1982-07", "1982-08", "1982-09", "1982-10", "1982-11", "1982-12", "1983-01", "1983-02", "1983-03", "1983-04", "1983-05", "1983-06", "1983-07", "1983-08", "1983-09", "1983-10", "1983-11", "1983-12", "1984-01", "1984-02", "1984-03", "1984-04", "1984-05", "1984-06", "1984-07", "1984-08", "1984-09", "1984-10", "1984-11", "1984-12", "1985-01", "1985-02", "1985-03", "1985-04", "1985-05", "1985-06", "1985-07", "1985-08", "1985-09", "1985-10", "1985-11", "1985-12", "1986-01", "1986-02", "1986-03", "1986-04", "1986-05", "1986-06", "1986-07", "1986-08", "1986-09", "1986-10", "1986-11", "1986-12", "1987-01", "1987-02", "1987-03", "1987-04", "1987-05", "1987-06", "1987-07", "1987-08", "1987-09", "1987-10", "1987-11", "1987-12", "1988-01", "1988-02", "1988-03", "1988-04", "1988-05", "1988-06", "1988-07", "1988-08", "1988-09", "1988-10", "1988-11", "1988-12", "1989-01", "1989-02", "1989-03", "1989-04", "1989-05", "1989-06", "1989-07", "1989-08", "1989-09", "1989-10", "1989-11", "1989-12", "1990-01", "1990-02", "1990-03", "1990-04", "1990-05", "1990-06", "1990-07", "1990-08", "1990-09", "1990-10", "1990-11", "1990-12", "1991-01", "1991-02", "1991-03", "1991-04", "1991-05", "1991-06", "1991-07", "1991-08", "1991-09", "1991-10", "1991-11", "1991-12", "1992-01", "1992-02", "1992-03", "1992-04", "1992-05", "1992-06", "1992-07", "1992-08", "1992-09", "1992-10", "1992-11", "1992-12", "1993-01", "1993-02", "1993-03", "1993-04", "1993-05", "1993-06", "1993-07", "1993-08", "1993-09", "1993-10", "1993-11", "1993-12", "1994-01", "1994-02", "1994-03", "1994-04", "1994-05", "1994-06", "1994-07", "1994-08", "1994-09", "1994-10", "1994-11", "1994-12", "1995-01", "1995-02", "1995-03", "1995-04", "1995-05", "1995-06", "1995-07", "1995-08", "1995-09", "1995-10", "1995-11", "1995-12", "1996-01", "1996-02", "1996-03", "1996-04", "1996-05", "1996-06", "1996-07", "1996-08", "1996-09", "1996-10", "1996-11", "1996-12", "1997-01", "1997-02", "1997-03", "1997-04", "1997-05", "1997-06", "1997-07", "1997-08", "1997-09", "1997-10", "1997-11", "1997-12", "1998-01", "1998-02", "1998-03", "1998-04", "1998-05", "1998-06", "1998-07", "1998-08", "1998-09", "1998-10", "1998-11", "1998-12", "1999-01", "1999-02", "1999-03", "1999-04", "1999-05", "1999-06", "1999-07", "1999-08", "1999-09", "1999-10", "1999-11", "1999-12", "2000-01", "2000-02", "2000-03", "2000-04", "2000-05", "2000-06", "2000-07", "2000-08", "2000-09", "2000-10", "2000-11", "2000-12", "2001-01", "2001-02", "2001-03", "2001-04", "2001-05", "2001-06", "2001-07", "2001-08", "2001-09", "2001-10", "2001-11", "2001-12", "2002-01", "2002-02", "2002-03", "2002-04", "2002-05", "2002-06", "2002-07", "2002-08", "2002-09", "2002-10", "2002-11", "2002-12", "2003-01", "2003-02", "2003-03", "2003-04", "2003-05", "2003-06", "2003-07", "2003-08", "2003-09", "2003-10", "2003-11", "2003-12", "2004-01", "2004-02", "2004-03", "2004-04", "2004-05", "2004-06", "2004-07", "2004-08", "2004-09", "2004-10", "2004-11", "2004-12", "2005-01", "2005-02", "2005-03", "2005-04", "2005-05", "2005-06", "2005-07", "2005-08", "2005-09", "2005-10", "2005-11", "2005-12", "2006-01", "2006-02", "2006-03", "2006-04", "2006-05", "2006-06", "2006-07", "2006-08", "2006-09", "2006-10", "2006-11", "2006-12", "2007-01", "2007-02", "2007-03", "2007-04", "2007-05", "2007-06", "2007-07", "2007-08", "2007-09", "2007-10", "2007-11", "2007-12", "2008-01", "2008-02", "2008-03", "2008-04", "2008-05", "2008-06", "2008-07", "2008-08", "2008-09", "2008-10", "2008-11", "2008-12", "2009-01", "2009-02", "2009-03", "2009-04", "2009-05", "2009-06", "2009-07", "2009-08", "2009-09", "2009-10", "2009-11", "2009-12", "2010-01", "2010-02", "2010-03", "2010-04", "2010-05", "2010-06", "2010-07", "2010-08", "2010-09", "2010-10", "2010-11", "2010-12", "2011-01", "2011-02", "2011-03", "2011-04", "2011-05", "2011-06", "2011-07", "2011-08", "2011-09", "2011-10", "2011-11", "2011-12", "2012-01", "2012-02", "2012-03", "2012-04", "2012-05", "2012-06", "2012-07", "2012-08", "2012-09", "2012-10", "2012-11", "2012-12", "2013-01", "2013-02", "2013-03", "2013-04", "2013-05", "2013-06", "2013-07", "2013-08", "2013-09", "2013-10", "2013-11", "2013-12", "2014-01", "2014-02", "2014-03", "2014-04", "2014-05", "2014-06", "2014-07", "2014-08", "2014-09", "2014-10", "2014-11", "2014-12", "2015-01", "2015-02", "2015-03", "2015-04", "2015-05", "2015-06", "2015-07", "2015-08", "2015-09", "2015-10", "2015-11", "2015-12", "2016-01", "2016-02", "2016-03", "2016-04", "2016-05", "2016-06", "2016-07", "2016-08", "2016-09", "2016-10", "2016-11", "2016-12", "2017-01", "2017-02", "2017-03", "2017-04", "2017-05", "2017-06", "2017-07", "2017-08", "2017-09", "2017-10", "2017-11", "2017-12", "2018-01", "2018-02", "2018-03", "2018-04", "2018-05", "2018-06", "2018-07", "2018-08", "2018-09", "2018-10", "2018-11", "2018-12", "2019-01", "2019-02", "2019-03", "2019-04", "2019-05", "2019-06", "2019-07", "2019-08", "2019-09", "2019-10", "2019-11", "2019-12", "2020-01", "2020-02", "2020-03", "2020-04", "2020-05", "2020-06", "2020-07", "2020-08", "2020-09", "2020-10", "2020-11", "2020-12", "2021-01", "2021-02", "2021-03", "2021-04", "2021-05", "2021-06", "2021-07", "2021-08", "2021-09", "2021-10", "2021-11", "2021-12", "2022-01", "2022-02", "2022-03", "2022-04", "2022-05", "2022-06", "2022-07", "2022-08", "2022-09", "2022-10", "2022-11", "2022-12", "2023-01", "2023-02", "2023-03", "2023-04", "2023-05", "2023-06", "2023-07", "2023-08", "2023-09", "2023-10", "2023-11", "2023-12", "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12", "2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05"], "fitted": [15.53, 12.31, 11.05, 12.31, 12.07, 10.19, 8.26, 8.62, 11.16, 8.09, 6.48, 7.74, 7.91, 5.7, 4.88, 5.91, 6.93, 7.49, 6.85, 6.11, 7.57, 7.33, 6.62, 7.25, 9.38, 8.0, 7.49, 8.09, 10.29, 12.19, 15.39, 15.39, 18.8, 17.72, 17.26, 14.58, 16.38, 18.17, 17.41, 13.41, 14.31, 16.97, 18.48, 17.56, 19.43, 19.92, 21.76, 20.25, 18.96, 16.97, 17.41, 13.79, 16.67, 19.27, 19.27, 18.96, 22.98, 15.39, 6.33, 5.25, 4.82, 3.48, 2.94, 2.4, 4.27, 7.91, 9.29, 10.29, 10.09, 9.0, 8.44, 9.09, 9.29, 6.7, 9.68, 9.0, 10.5, 15.53, 17.87, 19.43, 22.45, 19.59, 17.12, 11.72, 10.5, 10.4, 5.19, 5.77, 6.48, 7.91, 5.84, 6.04, 5.84, 5.77, 7.57, 7.66, 6.55, 7.09, 6.11, 5.25, 5.44, 5.12, 5.64, 6.78, 6.78, 7.57, 8.0, 8.9, 9.88, 9.19, 9.19, 10.09, 9.38, 9.0, 9.09, 10.09, 11.16, 11.95, 11.05, 10.61, 10.29, 11.05, 11.05, 12.91, 14.98, 14.71, 15.26, 16.1, 15.95, 15.39, 15.81, 14.98, 13.92, 14.44, 14.85, 14.31, 14.85, 15.12, 15.81, 17.41, 20.08, 19.43, 21.08, 21.08, 21.25, 20.41, 18.96, 19.76, 18.96, 19.59, 20.41, 19.76, 21.76, 25.73, 22.81, 21.08, 23.7, 23.52, 20.58, 22.11, 21.42, 29.83, 32.94, 29.23, 28.43, 28.83, 24.79, 21.08, 14.05, 8.53, 6.62, 11.61, 10.94, 12.42, 11.95, 10.83, 14.31, 17.12, 16.38, 16.53, 21.42, 22.28, 22.45, 22.63, 20.25, 21.25, 21.93, 21.59, 24.79, 28.04, 24.79, 21.08, 24.98, 21.08, 23.7, 31.68, 31.89, 24.79, 24.24, 28.04, 29.43, 27.65, 24.06, 18.48, 12.42, 10.29, 9.38, 10.94, 9.78, 8.35, 7.09, 6.04, 6.33, 4.54, 2.03, 2.3, 3.67, 2.53, 4.71, 7.83, 5.5, 6.85, 6.7, 5.84, 3.91, 1.61, 1.01, 2.24, 1.84, 1.95, 2.71, 2.98, 2.75, 4.06, 4.88, 6.48, 8.17, 10.5, 10.61, 15.81, 18.96, 17.72, 31.89, 44.98, 54.04, 52.42, 34.86, 50.09, 41.08, 42.68, 29.23, 41.99, 43.59, 39.72, 33.36, 21.42, 45.9, 26.49, 18.48, 22.28, 21.08, 8.62, 4.06, 2.57, 1.5, 1.09, 1.74, 3.86, 3.72, 3.48, 2.79, 1.61, 1.64, 1.03, 0.97, 1.27, 1.33, 1.33, 1.92, 1.54, 1.48, 1.76, 1.81, 1.69, 1.74, 1.57, 1.29, 1.04, 1.09, 1.79, 2.5, 2.94, 3.96, 6.26, 7.57, 6.62, 5.64, 6.33, 5.91, 4.82, 4.21, 3.81, 4.94, 5.57, 7.83, 16.53, 15.39, 22.98, 27.45, 31.06, 30.44, 33.36, 31.68, 33.36, 29.03, 31.89, 36.17, 46.13, 57.04, 51.02, 62.68, 52.42, 35.3, 78.54, 64.44, 5.77, 1.31, 2.75, 3.67, 8.62, 23.7, 48.92, 81.79, 78.54, 61.57, 30.85, 26.29, 74.04, 53.81, 40.17, 37.93, 15.81, 5.7, 1.71, 1.03, 2.33, 11.61, 9.19, 9.29, 6.26, 4.37, 1.54, 0.07, 0.06, 0.61, 1.84, 1.54, 1.54, 1.52, 2.86, 2.75, 2.75, 3.27, 2.37, 1.76, 1.43, 0.98, 0.94, 1.09, 1.2, 1.24, 1.14, 0.92, 0.32, 0.26, 0.57, 2.53, 2.9, 2.0, 0.89, 0.4, 0.29, 0.57, 0.48, 0.38, 0.46, 0.6, 0.58, 0.62, 0.54, 0.74, 1.69, 2.86, 3.02, 5.5, 8.81, 8.62, 6.04, 5.84, 6.7, 5.5, 2.57, 2.53, 4.01, 5.91, 5.44, 5.38, 5.38, 2.12, 0.91, 1.27, 1.22, 1.29, 0.81, 0.44, 0.64, 0.59, 1.04, 1.66, 1.39, 1.13, 1.09, 1.89, 2.27, 2.71, 4.88, 6.85, 9.0, 10.61, 13.16, 15.53, 16.97, 17.12, 18.64, 23.7, 23.52, 22.28, 18.48, 19.59, 22.81, 22.28, 16.53, 14.31, 14.85, 10.83, 10.83, 14.05, 12.79, 8.09, 6.26, 6.11, 7.83, 7.74, 4.16, 3.96, 2.71, 2.09, 1.52, 1.31, 1.35, 1.61, 1.97, 1.69, 1.04, 0.81, 0.58, 0.36, 0.36, 0.24, 0.23, 0.3, 0.29, 0.39, 0.36, 0.24, 0.24, 0.33, 0.3, 0.49, 0.8, 0.71, 0.74, 1.0, 1.2, 1.41, 2.03, 2.33, 1.5, 1.31, 1.2, 1.29, 0.86, 0.52, 0.79, 0.89, 0.88, 1.22, 1.08, 1.16, 1.39, 2.68, 3.22, 5.12, 6.7, 7.17, 11.49, 14.71, 12.67, 10.09, 11.95, 13.92, 16.53, 16.53, 15.39, 11.27, 8.0, 6.04, 5.0, 4.43, 5.0, 5.84, 4.88, 6.18, 9.29, 7.33, 6.11, 7.17, 6.11, 4.94, 5.38, 6.04, 9.29, 9.38, 8.44, 10.4, 14.18, 15.39, 17.56, 17.87, 15.81, 14.85, 15.39, 17.26, 17.56, 18.48, 22.45, 16.53, 18.8, 21.42, 19.43, 16.67, 13.53, 12.31, 10.61, 7.83, 8.62, 8.81, 8.62, 8.53, 11.49, 10.19, 7.74, 11.38, 16.53, 20.25, 15.39, 18.96, 24.43, 31.27, 30.04, 33.58, 35.3, 37.05, 25.92, 22.11, 18.02, 8.35, 4.71, 4.6, 4.94, 5.7, 3.14, 2.03, 1.18, 0.43, 0.44, 0.62, 0.37, 0.36, 0.41, 0.58, 0.88, 1.46, 2.57, 2.18, 1.11, 1.08, 1.01, 1.27, 1.37, 1.09, 1.79, 2.03, 0.74, 0.36, 0.49, 0.46, 0.46, 0.46, 0.54, 0.66, 1.0, 0.43, 0.25, 0.39, 0.64, 1.14, 1.84, 2.24, 3.02, 3.35, 4.06, 5.57, 4.77, 6.04, 8.09, 10.72, 11.49, 13.16, 13.66, 14.05, 15.26, 16.38, 22.81, 23.52, 22.28, 19.27, 19.27, 20.41, 23.52, 27.65, 27.84, 29.83, 32.94, 31.89, 30.44, 32.31, 33.79, 29.63, 25.73, 17.72, 22.81, 18.02, 15.67, 15.67, 12.42, 9.98, 11.16, 5.64, 2.53, 2.09, 2.9, 2.57, 2.12, 2.82, 1.64, 0.67, 0.48, 2.09, 2.09, 1.61, 1.52, 1.2, 0.7, 0.34, 0.45, 0.42, 0.53, 0.5, 0.47, 0.34, 0.27, 0.32, 0.32, 0.26, 0.55, 0.74, 1.06, 1.69, 1.79, 2.03, 1.5, 0.66, 0.57, 0.4, 0.5, 0.43, 0.68, 0.89, 0.89, 2.43, 3.67, 2.98, 3.53, 3.67, 3.81, 4.11, 3.14, 3.67, 5.06, 6.26, 7.01, 5.91, 5.7, 5.44, 6.04, 5.44, 4.32, 4.11, 4.16, 5.12, 4.06, 2.53, 1.69, 1.33, 1.16, 1.61, 1.43, 1.09, 1.11, 1.41, 1.39, 1.37, 1.71, 1.64, 1.76, 2.09, 1.76, 2.43, 2.33, 2.79, 4.27, 3.72, 3.48, 3.91, 2.79, 2.24, 2.4, 3.1, 2.9, 3.31, 2.94, 3.48, 4.37, 6.7, 5.77, 5.91, 6.18, 7.49, 9.0, 8.44, 7.74, 7.01, 5.19, 3.62, 3.91, 4.01, 4.88, 6.48, 7.17, 8.9, 8.53, 9.0, 9.29, 8.17, 9.78, 10.19, 9.29, 8.17, 9.58, 9.88, 9.78, 10.94, 11.84, 12.67, 12.54, 12.19, 13.53, 18.17, 20.08, 20.91, 22.98, 23.34, 25.16, 28.04, 26.87, 32.52, 29.83, 24.98, 21.25, 20.41, 21.76, 26.49, 16.38, 17.26, 16.97, 16.53, 17.72, 16.82, 16.53, 14.85, 13.66, 12.91, 11.05, 8.81, 5.91, 5.64, 5.77, 6.62, 8.35, 8.72, 7.83, 6.26, 6.4, 7.17, 5.7, 5.77, 5.19, 3.58, 3.91, 5.44, 15.12, 21.25, 19.27, 21.42, 31.27, 39.27, 47.99, 45.44, 48.46, 58.41, 60.9, 57.27, 55.89, 50.79, 46.37, 37.27, 42.45, 52.88, 51.49, 48.46, 48.46, 40.85, 42.45, 46.13, 46.6, 51.95, 47.76, 34.43, 27.26, 23.88, 18.8, 21.93, 24.61, 24.79, 22.98, 23.34, 23.52, 23.52, 22.45, 21.76, 20.58, 16.82, 15.53, 17.12, 15.53, 14.58, 12.42], "realtime": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 30.34, 25.03, 27.38, 29.18, 26.28, 28.43, 29.33, 32.23, 39.43, 51.41, 47.75, 54.45, 53.88, 54.24, 50.1, 43.02, 46.26, 42.17, 44.55, 47.54, 43.76, 50.56, 63.68, 51.22, 43.13, 50.73, 48.64, 37.81, 41.83, 38.75, 62.28, 68.26, 57.85, 54.02, 52.24, 40.61, 30.56, 14.38, 5.32, 3.16, 9.74, 8.67, 10.9, 10.23, 8.78, 13.14, 16.46, 15.28, 15.27, 21.14, 22.22, 22.48, 22.66, 19.6, 20.81, 21.63, 21.16, 25.22, 29.25, 24.8, 19.91, 24.41, 19.28, 21.99, 30.85, 30.61, 22.16, 21.21, 24.84, 25.66, 26.18, 23.51, 17.22, 9.83, 7.39, 6.28, 8.05, 6.38, 4.57, 3.14, 2.06, 2.43, 1.2, 0.19, 0.26, 0.74, 0.3, 1.26, 3.82, 1.73, 2.8, 2.63, 1.91, 0.74, 0.08, 0.02, 0.18, 0.11, 0.13, 0.29, 0.36, 0.29, 0.75, 1.16, 2.25, 3.83, 6.66, 6.8, 15.39, 21.64, 19.1, 50.05, 74.69, 86.52, 84.8, 56.46, 82.18, 65.72, 67.18, 42.58, 65.77, 69.45, 64.31, 54.69, 30.66, 78.01, 42.82, 25.03, 34.21, 31.72, 5.53, 0.87, 0.24, 0.08, 0.05, 0.17, 1.09, 1.19, 1.06, 0.66, 0.21, 0.22, 0.08, 0.06, 0.12, 0.13, 0.13, 0.29, 0.18, 0.16, 0.24, 0.25, 0.21, 0.23, 0.18, 0.12, 0.07, 0.08, 0.24, 0.49, 0.7, 1.3, 3.28, 4.75, 3.66, 2.65, 3.34, 2.91, 1.94, 1.47, 1.19, 2.03, 2.57, 5.01, 19.2, 17.01, 32.18, 41.44, 48.77, 47.57, 53.35, 50.09, 53.41, 44.78, 50.58, 58.83, 75.1, 87.8, 81.09, 91.64, 81.24, 56.05, 98.81, 93.98, 2.37, 0.07, 0.4, 0.86, 5.79, 32.29, 72.98, 97.11, 94.7, 80.93, 37.41, 30.09, 84.93, 64.31, 47.93, 44.16, 17.62, 5.74, 1.38, 0.72, 1.89, 12.65, 9.66, 9.87, 6.05, 3.8, 0.95, 0.01, 0.01, 0.34, 1.88, 1.53, 1.52, 1.48, 3.04, 2.88, 2.86, 3.46, 2.38, 1.68, 1.32, 0.84, 0.79, 0.95, 1.05, 1.09, 0.98, 0.75, 0.2, 0.16, 0.41, 2.46, 2.88, 1.85, 0.7, 0.26, 0.18, 0.4, 0.32, 0.24, 0.3, 0.42, 0.4, 0.43, 0.36, 0.53, 1.45, 2.75, 2.93, 5.96, 10.27, 10.02, 6.64, 6.37, 7.48, 5.94, 2.39, 2.35, 4.06, 6.41, 5.8, 5.7, 5.67, 1.82, 0.63, 0.95, 0.89, 0.95, 0.52, 0.24, 0.38, 0.34, 0.7, 1.26, 1.0, 0.76, 0.72, 1.46, 1.83, 2.29, 4.77, 7.21, 10.01, 12.17, 15.65, 18.94, 20.94, 21.15, 23.28, 30.37, 30.12, 28.38, 23.02, 24.56, 29.05, 28.27, 20.1, 16.95, 17.62, 12.06, 12.01, 16.32, 14.53, 8.44, 6.24, 6.15, 8.42, 8.39, 3.92, 3.78, 2.39, 1.7, 1.12, 0.91, 0.94, 1.18, 1.52, 1.23, 0.64, 0.45, 0.28, 0.15, 0.15, 0.08, 0.08, 0.11, 0.1, 0.16, 0.14, 0.08, 0.08, 0.12, 0.11, 0.21, 0.42, 0.36, 0.37, 0.57, 0.73, 0.91, 1.48, 1.78, 0.98, 0.82, 0.73, 0.8, 0.46, 0.23, 0.4, 0.48, 0.47, 0.73, 0.62, 0.68, 0.87, 2.1, 2.69, 4.93, 6.96, 7.58, 13.65, 18.39, 15.36, 11.61, 14.3, 17.2, 21.09, 21.08, 19.37, 13.25, 8.6, 5.98, 4.64, 3.93, 4.6, 5.61, 4.41, 6.0, 10.1, 7.42, 5.83, 7.15, 5.78, 4.34, 4.84, 5.65, 9.89, 10.0, 8.7, 11.37, 16.8, 18.57, 21.8, 22.23, 19.13, 17.67, 18.47, 21.25, 21.67, 23.03, 29.05, 20.02, 23.39, 27.31, 24.22, 20.0, 15.32, 13.51, 11.1, 7.36, 8.36, 8.57, 8.3, 8.15, 12.06, 10.25, 7.07, 11.78, 18.99, 24.4, 17.29, 22.44, 30.53, 40.62, 38.81, 43.96, 46.41, 48.88, 32.62, 26.9, 20.79, 7.57, 3.46, 3.38, 3.76, 4.6, 1.92, 0.98, 0.41, 0.09, 0.09, 0.15, 0.07, 0.07, 0.08, 0.13, 0.26, 0.57, 1.36, 1.06, 0.37, 0.35, 0.32, 0.46, 0.52, 0.36, 0.78, 0.95, 0.19, 0.06, 0.1, 0.09, 0.09, 0.09, 0.11, 0.16, 0.31, 0.08, 0.03, 0.07, 0.15, 0.38, 0.79, 1.08, 1.7, 2.0, 2.67, 4.27, 3.39, 4.81, 7.32, 10.88, 11.98, 14.41, 15.16, 15.73, 17.56, 19.29, 29.42, 30.55, 28.57, 23.77, 23.75, 25.52, 30.45, 37.0, 37.26, 40.36, 45.13, 43.44, 41.04, 43.77, 45.89, 39.38, 33.16, 20.56, 28.37, 20.85, 17.24, 17.16, 12.48, 9.19, 10.78, 4.05, 1.19, 0.87, 1.45, 1.22, 0.9, 1.44, 0.62, 0.15, 0.09, 1.04, 1.08, 0.81, 0.89, 0.77, 0.45, 0.21, 0.3, 0.28, 0.37, 0.34, 0.32, 0.21, 0.16, 0.19, 0.19, 0.15, 0.38, 0.55, 0.86, 1.52, 1.63, 1.91, 1.32, 0.47, 0.39, 0.25, 0.34, 0.28, 0.49, 0.69, 0.69, 2.36, 3.88, 3.01, 3.69, 3.86, 4.04, 4.42, 3.2, 3.86, 5.67, 7.27, 8.3, 6.78, 6.5, 6.13, 6.94, 6.11, 4.63, 4.35, 4.4, 5.65, 4.25, 2.37, 1.42, 1.05, 0.88, 1.33, 1.14, 0.8, 0.81, 1.1, 1.08, 1.05, 1.39, 1.31, 1.43, 1.78, 1.43, 2.15, 2.04, 2.55, 4.34, 3.65, 3.36, 3.88, 2.53, 1.92, 2.09, 2.88, 2.65, 3.12, 2.68, 3.32, 4.41, 7.45, 6.19, 6.36, 6.72, 8.49, 10.59, 9.8, 8.81, 7.79, 5.36, 3.4, 3.74, 3.85, 4.93, 7.0, 7.92, 10.31, 9.77, 10.41, 10.79, 9.22, 11.46, 12.04, 10.74, 9.17, 11.13, 11.55, 11.38, 13.02, 14.3, 15.49, 15.29, 14.75, 16.7, 23.58, 26.41, 27.63, 30.69, 31.19, 33.87, 38.05, 36.31, 44.4, 40.54, 33.42, 27.84, 26.53, 28.46, 35.32, 20.57, 22.05, 21.52, 20.78, 22.46, 21.03, 20.51, 18.01, 16.27, 15.16, 12.52, 9.45, 5.71, 5.36, 5.51, 6.55, 8.74, 9.19, 8.02, 6.03, 6.19, 7.13, 5.32, 5.39, 4.69, 2.88, 3.23, 4.95, 17.7, 26.37, 23.54, 26.59, 40.5, 51.35, 62.39, 59.28, 62.99, 74.27, 76.86, 73.1, 71.56, 65.64, 60.21, 48.35, 54.86, 67.03, 64.71, 60.53, 59.85, 49.77, 50.81, 54.34, 54.11, 59.45, 54.28, 38.83, 30.25, 26.08, 20.12, 23.48, 26.24, 26.28, 24.17, 24.38, 24.4, 24.2, 22.95, 22.14, 20.87, 17.01, 15.68, 17.24, 15.61, 14.61, 12.42]}, "recessions": [{"start": "1953-08", "end": "1954-06"}, {"start": "1957-09", "end": "1958-05"}, {"start": "1960-05", "end": "1961-03"}, {"start": "1970-01", "end": "1970-12"}, {"start": "1973-12", "end": "1975-04"}, {"start": "1980-02", "end": "1980-08"}, {"start": "1981-08", "end": "1982-12"}, {"start": "1990-08", "end": "1991-04"}, {"start": "2001-04", "end": "2001-12"}, {"start": "2008-01", "end": "2009-07"}, {"start": "2020-03", "end": "2020-05"}], "lab": {"models": {"10y-3m": {"const": -0.6401, "slope": -0.584, "oos_auc": 0.797, "onsets": 8, "current": 0.88, "note": "default headline (NY Fed standard)", "inversions": 11, "false_pos": 2, "hit_rate": 0.64, "lead_mean": 9.1, "lead_min": 1, "lead_max": 17}, "10y-ff": {"const": -0.988, "slope": -0.4517, "oos_auc": 0.853, "onsets": 8, "current": 0.85, "note": "highest OOS; leans on policy rate (Wright 2006)", "inversions": 13, "false_pos": 7, "hit_rate": 0.6, "lead_mean": 12.5, "lead_min": 9, "lead_max": 18}, "10y-2y": {"const": -0.9257, "slope": -0.7551, "oos_auc": 0.694, "onsets": 4, "current": 0.48, "note": "short history (2y from 1976)", "inversions": 8, "false_pos": 4, "hit_rate": 0.67, "lead_mean": 11.8, "lead_min": 5, "lead_max": 17}}, "curve_defaults": {"y3m": 3.6, "y2": 4.0, "y10": 4.48, "fedfunds": 3.63}, "fragility": {"debt_income": {"value": 89.93, "min": 60, "max": 140, "warn_above": 110.0, "label": "Household debt-to-income (%)"}, "real_house": {"value": -2.54, "min": -15, "max": 15, "warn_below": -2.0, "label": "Real house prices YoY (%)"}, "credit": {"value": 1.62, "min": 0.5, "max": 4.0, "warn_above": 2.5, "label": "Credit spread Baa-10yr (pp)"}, "debt_growth": {"value": 3.26, "min": -5, "max": 15, "warn_above": null, "label": "Household debt growth YoY (%)"}, "sloos": {"value": 8.1, "min": -25, "max": 60, "warn_above": 20.0, "label": "Banks tightening, SLOOS (net %)"}, "migration": {"value": -0.29, "min": -5, "max": 10, "warn_above": null, "label": "Foreign-born labor force growth YoY (%)"}}, "episodes": [{"label": "1980 (Volcker)", "outcome": "recession 1981-82 (policy-induced)", "vec": {"spread_10y_3m": -2.65, "real_hpi_yoy": null, "credit_spread": 2.3, "hh_debt_income": 66.43, "hh_debt_growth": 8.32, "sloos": null, "foreign_born_growth": null}}, {"label": "1989", "outcome": "recession 1990-91", "vec": {"spread_10y_3m": 0.13, "real_hpi_yoy": 1.27, "credit_spread": 1.75, "hh_debt_income": 81.14, "hh_debt_growth": 9.13, "sloos": null, "foreign_born_growth": null}}, {"label": "1998 (LTCM)", "outcome": "no recession", "vec": {"spread_10y_3m": 0.2, "real_hpi_yoy": 4.81, "credit_spread": 2.28, "hh_debt_income": 91.21, "hh_debt_growth": 7.76, "sloos": 24.27, "foreign_born_growth": null}}, {"label": "2000 (dot-com)", "outcome": "recession 2001 (tech bust)", "vec": {"spread_10y_3m": -0.53, "real_hpi_yoy": 5.66, "credit_spread": 2.78, "hh_debt_income": 96.01, "hh_debt_growth": 7.94, "sloos": 54.37, "foreign_born_growth": null}}, {"label": "2004", "outcome": "no recession (healthy)", "vec": {"spread_10y_3m": 3.46, "real_hpi_yoy": 9.51, "credit_spread": 2.05, "hh_debt_income": 116.42, "hh_debt_growth": 11.05, "sloos": -20.93, "foreign_born_growth": null}}, {"label": "2007 (GFC run-up)", "outcome": "recession 2008 (credit-cycle)", "vec": {"spread_10y_3m": -0.38, "real_hpi_yoy": -3.02, "credit_spread": 1.71, "hh_debt_income": 132.77, "hh_debt_growth": 8.41, "sloos": -2.53, "foreign_born_growth": null}}, {"label": "2019", "outcome": "COVID recession (exogenous)", "vec": {"spread_10y_3m": -0.32, "real_hpi_yoy": 1.34, "credit_spread": 2.24, "hh_debt_income": 98.22, "hh_debt_growth": 3.56, "sloos": -0.07, "foreign_born_growth": 0.36}}, {"label": "2023 (2022-24)", "outcome": "no recession", "vec": {"spread_10y_3m": -1.57, "real_hpi_yoy": -4.25, "credit_spread": 2.2, "hh_debt_income": 95.27, "hh_debt_growth": 3.73, "sloos": 47.6, "foreign_born_growth": 5.4}}], "match_vars": ["spread_10y_3m", "real_hpi_yoy", "credit_spread", "hh_debt_income", "hh_debt_growth", "sloos", "foreign_born_growth"], "match_labels": {"spread_10y_3m": "the yield curve", "real_hpi_yoy": "real house prices", "credit_spread": "the credit spread", "hh_debt_income": "household debt", "hh_debt_growth": "debt growth", "sloos": "bank lending", "foreign_born_growth": "labor-force growth"}, "match_stats": {"spread_10y_3m": {"mean": -0.208, "std": 1.761}, "real_hpi_yoy": {"mean": 2.19, "std": 4.876}, "credit_spread": {"mean": 2.164, "std": 0.34}, "hh_debt_income": {"mean": 97.184, "std": 20.289}, "hh_debt_growth": {"mean": 7.489, "std": 2.585}, "sloos": {"mean": 17.117, "std": 29.99}, "foreign_born_growth": {"mean": 2.878, "std": 3.566}}}, "matrix": {"cols": [{"key": "inverted", "label": "Curve inverted", "sub": "10y-3m, pp", "block": "leading"}, {"key": "leverage", "label": "Leverage high", "sub": "debt/income", "block": "leading"}, {"key": "house", "label": "House prices falling", "sub": "real YoY", "block": "leading"}, {"key": "credit", "label": "Credit stress", "sub": "Baa-10yr", "block": "coincident"}, {"key": "banks", "label": "Banks tightening", "sub": "SLOOS net %", "block": "coincident"}], "rows": [{"label": "1957", "outcome": "Recession 1957-58 (Fed tightening)", "outcome_rec": true, "today": false, "cells": {"inverted": {"value": "+0.24", "danger": false, "na": false}, "leverage": {"value": "50%", "danger": false, "na": false}, "house": {"value": "\u2014", "danger": false, "na": true}, "credit": {"value": "1.13", "danger": false, "na": false}, "banks": {"value": "\u2014", "danger": false, "na": true}}}, {"label": "1960", "outcome": "Recession 1960-61 (Fed tightening)", "outcome_rec": true, "today": false, "cells": {"inverted": {"value": "+0.20", "danger": false, "na": false}, "leverage": {"value": "55%", "danger": false, "na": false}, "house": {"value": "\u2014", "danger": false, "na": true}, "credit": {"value": "0.59", "danger": false, "na": false}, "banks": {"value": "\u2014", "danger": false, "na": true}}}, {"label": "1970", "outcome": "Recession 1970 (Fed tightening)", "outcome_rec": true, "today": false, "cells": {"inverted": {"value": "-0.29", "danger": true, "na": false}, "leverage": {"value": "63%", "danger": false, "na": false}, "house": {"value": "\u2014", "danger": false, "na": true}, "credit": {"value": "1.17", "danger": false, "na": false}, "banks": {"value": "\u2014", "danger": false, "na": true}}}, {"label": "1973-75", "outcome": "Recession 1973-75 (oil shock)", "outcome_rec": true, "today": false, "cells": {"inverted": {"value": "-1.27", "danger": true, "na": false}, "leverage": {"value": "61%", "danger": false, "na": false}, "house": {"value": "\u2014", "danger": false, "na": true}, "credit": {"value": "1.13", "danger": false, "na": false}, "banks": {"value": "\u2014", "danger": false, "na": true}}}, {"label": "1980 (Volcker)", "outcome": "recession 1981-82 (policy-induced)", "outcome_rec": true, "today": false, "cells": {"inverted": {"value": "-2.65", "danger": true, "na": false}, "leverage": {"value": "66%", "danger": false, "na": false}, "house": {"value": "\u2014", "danger": false, "na": true}, "credit": {"value": "2.30", "danger": false, "na": false}, "banks": {"value": "\u2014", "danger": false, "na": true}}}, {"label": "1989", "outcome": "recession 1990-91", "outcome_rec": true, "today": false, "cells": {"inverted": {"value": "+0.13", "danger": false, "na": false}, "leverage": {"value": "81%", "danger": false, "na": false}, "house": {"value": "+1.3%", "danger": false, "na": false}, "credit": {"value": "1.75", "danger": false, "na": false}, "banks": {"value": "\u2014", "danger": false, "na": true}}}, {"label": "1998 (LTCM)", "outcome": "no recession", "outcome_rec": false, "today": false, "cells": {"inverted": {"value": "+0.20", "danger": false, "na": false}, "leverage": {"value": "91%", "danger": false, "na": false}, "house": {"value": "+4.8%", "danger": false, "na": false}, "credit": {"value": "2.28", "danger": false, "na": false}, "banks": {"value": "+24", "danger": true, "na": false}}}, {"label": "2000 (dot-com)", "outcome": "recession 2001 (tech bust)", "outcome_rec": true, "today": false, "cells": {"inverted": {"value": "-0.53", "danger": true, "na": false}, "leverage": {"value": "96%", "danger": false, "na": false}, "house": {"value": "+5.7%", "danger": false, "na": false}, "credit": {"value": "2.78", "danger": true, "na": false}, "banks": {"value": "+54", "danger": true, "na": false}}}, {"label": "2004", "outcome": "no recession (healthy)", "outcome_rec": false, "today": false, "cells": {"inverted": {"value": "+3.46", "danger": false, "na": false}, "leverage": {"value": "116%", "danger": true, "na": false}, "house": {"value": "+9.5%", "danger": false, "na": false}, "credit": {"value": "2.05", "danger": false, "na": false}, "banks": {"value": "-21", "danger": false, "na": false}}}, {"label": "2007 (GFC run-up)", "outcome": "recession 2008 (credit-cycle)", "outcome_rec": true, "today": false, "cells": {"inverted": {"value": "-0.38", "danger": true, "na": false}, "leverage": {"value": "133%", "danger": true, "na": false}, "house": {"value": "-3.0%", "danger": true, "na": false}, "credit": {"value": "1.71", "danger": false, "na": false}, "banks": {"value": "-3", "danger": false, "na": false}}}, {"label": "2019", "outcome": "COVID recession (exogenous)", "outcome_rec": true, "today": false, "cells": {"inverted": {"value": "-0.32", "danger": true, "na": false}, "leverage": {"value": "98%", "danger": false, "na": false}, "house": {"value": "+1.3%", "danger": false, "na": false}, "credit": {"value": "2.24", "danger": false, "na": false}, "banks": {"value": "-0", "danger": false, "na": false}}}, {"label": "2023 (2022-24)", "outcome": "no recession", "outcome_rec": false, "today": false, "cells": {"inverted": {"value": "-1.57", "danger": true, "na": false}, "leverage": {"value": "95%", "danger": false, "na": false}, "house": {"value": "-4.2%", "danger": true, "na": false}, "credit": {"value": "2.20", "danger": false, "na": false}, "banks": {"value": "+48", "danger": true, "na": false}}}, {"label": "TODAY (May 2026)", "outcome": "ALL CLEAR", "outcome_rec": null, "today": true, "cells": {"inverted": {"value": "+0.88", "danger": false, "na": false}, "leverage": {"value": "90%", "danger": false, "na": false}, "house": {"value": "-2.5%", "danger": true, "na": false}, "credit": {"value": "1.62", "danger": false, "na": false}, "banks": {"value": "+8", "danger": false, "na": false}}}]}, "config": {"thresholds": {"inverted": {"value": 0.0, "dir": "below", "label": "Curve inverted (10y-3m < 0)"}, "leverage": {"value": 110.0, "dir": "above", "label": "Household debt-to-income > 110%"}, "house": {"value": -2.0, "dir": "below", "label": "Real house prices YoY < -2%"}, "credit": {"value": 2.5, "dir": "above", "label": "Credit spread Baa-10yr > 2.5pp"}, "banks": {"value": 20.0, "dir": "above", "label": "Banks tightening, SLOOS > 20"}}}};
+const DATA = {"generated": "2026-07-07", "as_of_daily": "2026-07-02", "monthly_through": "2026-06", "rule": {"count_met": 1, "firing": false, "thresholds": {"flag": 30, "aug": 15, "tp_bp": 50}}, "plain_english": "the curve is positively sloped (10Y\u22123M +0.72 pp); credit is calm (Baa\u2212Aa +0.48 pp); the term premium is not compressed (+68 bp, ~47th percentile).", "signals": [{"key": "flag", "num": 1, "name": "12-month outlook", "model": "flagship \u2014 term spread", "sub": "is a recession building over the next year?", "value": 14, "unit": "%", "fires_text": "fires \u2265 30%", "met": false, "gauge": true}, {"key": "aug", "num": 2, "name": "3-month watch", "model": "augmented \u2014 term + Baa\u2212Aa credit", "sub": "is one arriving in the next quarter?", "value": 7, "unit": "%", "fires_text": "fires \u2265 15%", "met": false, "gauge": true, "source_note": "Aa leg: FRED Aaa substitute (Moody's DataBuffet off)"}, {"key": "tp", "num": 3, "name": "Trust check", "model": "term premium (Kim\u2013Wright)", "sub": "is the curve's signal trustworthy, or distorted by a compressed premium?", "value_bp": 68, "fires_text": "clear \u2265 50 bp; vetoes if compressed (< 50 bp)", "met": true, "gauge": false, "tp_class": "near normal", "percentile": 47, "acm_note": "the report's headline uses the ACM term premium (~+67 bp, ~33rd pctile), which agrees"}], "inputs": {"primary_daily": 0.72, "primary_monthly": 0.81, "spreads": [{"label": "10Y \u2212 3M T-bill", "daily": 0.72, "monthly": 0.81, "inverted": false}, {"label": "10Y \u2212 2Y", "daily": 0.35, "monthly": 0.36, "inverted": false}, {"label": "10Y \u2212 Fed Funds", "daily": 0.86, "monthly": 0.84, "inverted": false}]}, "prob_table": {"horizons": [3, 6, 12, 18, 24], "spreads": [{"key": "10y3m", "label": "10Y \u2212 3M T-bill", "vals": [15.2, 15.6, 14.4, 14.7, 14.6]}, {"key": "10y2y", "label": "10Y \u2212 2Y", "vals": [11.4, 12.0, 11.7, 11.0, 11.8]}, {"key": "10yffr", "label": "10Y \u2212 Fed Funds", "vals": [10.3, 9.0, 8.4, 10.1, 11.9]}]}, "term_premium": {"tp_current": 0.68, "tp_bp": 68, "tp_class": "near normal", "tp_percentile": 47, "tp_date": "2026-06-26", "tp_compressed_2020_21": -0.31, "tp_2022_23": -0.05, "tp_2022_23_date": "2023-05", "gate_pp": 0.5}, "tp_series": {"dates": ["1990-01", "1990-02", "1990-03", "1990-04", "1990-05", "1990-06", "1990-07", "1990-08", "1990-09", "1990-10", "1990-11", "1990-12", "1991-01", "1991-02", "1991-03", "1991-04", "1991-05", "1991-06", "1991-07", "1991-08", "1991-09", "1991-10", "1991-11", "1991-12", "1992-01", "1992-02", "1992-03", "1992-04", "1992-05", "1992-06", "1992-07", "1992-08", "1992-09", "1992-10", "1992-11", "1992-12", "1993-01", "1993-02", "1993-03", "1993-04", "1993-05", "1993-06", "1993-07", "1993-08", "1993-09", "1993-10", "1993-11", "1993-12", "1994-01", "1994-02", "1994-03", "1994-04", "1994-05", "1994-06", "1994-07", "1994-08", "1994-09", "1994-10", "1994-11", "1994-12", "1995-01", "1995-02", "1995-03", "1995-04", "1995-05", "1995-06", "1995-07", "1995-08", "1995-09", "1995-10", "1995-11", "1995-12", "1996-01", "1996-02", "1996-03", "1996-04", "1996-05", "1996-06", "1996-07", "1996-08", "1996-09", "1996-10", "1996-11", "1996-12", "1997-01", "1997-02", "1997-03", "1997-04", "1997-05", "1997-06", "1997-07", "1997-08", "1997-09", "1997-10", "1997-11", "1997-12", "1998-01", "1998-02", "1998-03", "1998-04", "1998-05", "1998-06", "1998-07", "1998-08", "1998-09", "1998-10", "1998-11", "1998-12", "1999-01", "1999-02", "1999-03", "1999-04", "1999-05", "1999-06", "1999-07", "1999-08", "1999-09", "1999-10", "1999-11", "1999-12", "2000-01", "2000-02", "2000-03", "2000-04", "2000-05", "2000-06", "2000-07", "2000-08", "2000-09", "2000-10", "2000-11", "2000-12", "2001-01", "2001-02", "2001-03", "2001-04", "2001-05", "2001-06", "2001-07", "2001-08", "2001-09", "2001-10", "2001-11", "2001-12", "2002-01", "2002-02", "2002-03", "2002-04", "2002-05", "2002-06", "2002-07", "2002-08", "2002-09", "2002-10", "2002-11", "2002-12", "2003-01", "2003-02", "2003-03", "2003-04", "2003-05", "2003-06", "2003-07", "2003-08", "2003-09", "2003-10", "2003-11", "2003-12", "2004-01", "2004-02", "2004-03", "2004-04", "2004-05", "2004-06", "2004-07", "2004-08", "2004-09", "2004-10", "2004-11", "2004-12", "2005-01", "2005-02", "2005-03", "2005-04", "2005-05", "2005-06", "2005-07", "2005-08", "2005-09", "2005-10", "2005-11", "2005-12", "2006-01", "2006-02", "2006-03", "2006-04", "2006-05", "2006-06", "2006-07", "2006-08", "2006-09", "2006-10", "2006-11", "2006-12", "2007-01", "2007-02", "2007-03", "2007-04", "2007-05", "2007-06", "2007-07", "2007-08", "2007-09", "2007-10", "2007-11", "2007-12", "2008-01", "2008-02", "2008-03", "2008-04", "2008-05", "2008-06", "2008-07", "2008-08", "2008-09", "2008-10", "2008-11", "2008-12", "2009-01", "2009-02", "2009-03", "2009-04", "2009-05", "2009-06", "2009-07", "2009-08", "2009-09", "2009-10", "2009-11", "2009-12", "2010-01", "2010-02", "2010-03", "2010-04", "2010-05", "2010-06", "2010-07", "2010-08", "2010-09", "2010-10", "2010-11", "2010-12", "2011-01", "2011-02", "2011-03", "2011-04", "2011-05", "2011-06", "2011-07", "2011-08", "2011-09", "2011-10", "2011-11", "2011-12", "2012-01", "2012-02", "2012-03", "2012-04", "2012-05", "2012-06", "2012-07", "2012-08", "2012-09", "2012-10", "2012-11", "2012-12", "2013-01", "2013-02", "2013-03", "2013-04", "2013-05", "2013-06", "2013-07", "2013-08", "2013-09", "2013-10", "2013-11", "2013-12", "2014-01", "2014-02", "2014-03", "2014-04", "2014-05", "2014-06", "2014-07", "2014-08", "2014-09", "2014-10", "2014-11", "2014-12", "2015-01", "2015-02", "2015-03", "2015-04", "2015-05", "2015-06", "2015-07", "2015-08", "2015-09", "2015-10", "2015-11", "2015-12", "2016-01", "2016-02", "2016-03", "2016-04", "2016-05", "2016-06", "2016-07", "2016-08", "2016-09", "2016-10", "2016-11", "2016-12", "2017-01", "2017-02", "2017-03", "2017-04", "2017-05", "2017-06", "2017-07", "2017-08", "2017-09", "2017-10", "2017-11", "2017-12", "2018-01", "2018-02", "2018-03", "2018-04", "2018-05", "2018-06", "2018-07", "2018-08", "2018-09", "2018-10", "2018-11", "2018-12", "2019-01", "2019-02", "2019-03", "2019-04", "2019-05", "2019-06", "2019-07", "2019-08", "2019-09", "2019-10", "2019-11", "2019-12", "2020-01", "2020-02", "2020-03", "2020-04", "2020-05", "2020-06", "2020-07", "2020-08", "2020-09", "2020-10", "2020-11", "2020-12", "2021-01", "2021-02", "2021-03", "2021-04", "2021-05", "2021-06", "2021-07", "2021-08", "2021-09", "2021-10", "2021-11", "2021-12", "2022-01", "2022-02", "2022-03", "2022-04", "2022-05", "2022-06", "2022-07", "2022-08", "2022-09", "2022-10", "2022-11", "2022-12", "2023-01", "2023-02", "2023-03", "2023-04", "2023-05", "2023-06", "2023-07", "2023-08", "2023-09", "2023-10", "2023-11", "2023-12", "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12", "2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"], "term_premium": [1.929, 2.052, 2.088, 2.192, 2.195, 2.07, 2.076, 2.237, 2.343, 2.278, 2.128, 2.038, 2.179, 2.133, 2.284, 2.303, 2.366, 2.448, 2.438, 2.301, 2.201, 2.146, 2.202, 2.147, 2.222, 2.373, 2.42, 2.447, 2.428, 2.332, 2.208, 2.102, 2.064, 2.165, 2.261, 2.203, 2.15, 1.959, 1.82, 1.818, 1.807, 1.71, 1.624, 1.591, 1.425, 1.388, 1.572, 1.602, 1.598, 1.678, 1.901, 2.13, 2.113, 2.061, 2.135, 2.065, 2.147, 2.222, 2.267, 2.109, 2.09, 1.918, 1.793, 1.726, 1.497, 1.298, 1.367, 1.492, 1.369, 1.266, 1.194, 1.123, 1.122, 1.224, 1.482, 1.621, 1.706, 1.772, 1.714, 1.61, 1.722, 1.584, 1.405, 1.46, 1.586, 1.521, 1.654, 1.748, 1.661, 1.587, 1.43, 1.455, 1.45, 1.357, 1.236, 1.178, 1.065, 1.094, 1.151, 1.153, 1.157, 1.083, 1.062, 0.998, 0.786, 0.792, 0.87, 0.795, 0.881, 1.01, 1.142, 1.121, 1.265, 1.437, 1.402, 1.46, 1.454, 1.541, 1.405, 1.48, 1.625, 1.537, 1.397, 1.258, 1.437, 1.274, 1.189, 1.066, 1.063, 0.981, 0.941, 0.776, 0.873, 0.931, 0.922, 1.141, 1.328, 1.32, 1.285, 1.199, 1.2, 1.222, 1.337, 1.653, 1.626, 1.551, 1.734, 1.693, 1.638, 1.499, 1.347, 1.128, 0.905, 0.942, 1.071, 1.077, 1.073, 0.991, 0.931, 1.01, 0.782, 0.661, 1.016, 1.316, 1.21, 1.203, 1.223, 1.21, 1.135, 1.097, 0.94, 1.243, 1.452, 1.404, 1.245, 1.101, 0.966, 0.923, 0.916, 0.899, 0.872, 0.807, 0.957, 0.854, 0.734, 0.638, 0.679, 0.685, 0.64, 0.735, 0.754, 0.705, 0.613, 0.669, 0.726, 0.83, 0.867, 0.845, 0.799, 0.689, 0.634, 0.624, 0.544, 0.539, 0.633, 0.611, 0.526, 0.604, 0.654, 0.878, 0.792, 0.728, 0.696, 0.707, 0.628, 0.652, 0.503, 0.66, 0.676, 0.792, 0.862, 0.954, 0.916, 0.829, 0.803, 1.029, 0.998, 0.496, 0.534, 0.696, 0.644, 0.654, 0.853, 1.139, 1.027, 1.059, 0.952, 0.93, 0.919, 0.981, 1.068, 1.021, 1.024, 1.086, 0.867, 0.756, 0.615, 0.423, 0.394, 0.299, 0.397, 0.731, 0.781, 0.907, 0.825, 0.866, 0.691, 0.559, 0.562, 0.19, 0.043, 0.137, 0.054, 0.032, 0.009, -0.013, 0.106, 0.038, -0.09, -0.171, -0.228, -0.148, -0.149, -0.138, -0.175, -0.146, -0.049, -0.011, -0.026, -0.123, -0.033, 0.195, 0.359, 0.449, 0.502, 0.369, 0.401, 0.515, 0.529, 0.441, 0.471, 0.489, 0.408, 0.437, 0.424, 0.374, 0.446, 0.319, 0.34, 0.289, 0.121, 0.175, 0.204, 0.125, 0.269, 0.357, 0.324, 0.23, 0.232, 0.176, 0.28, 0.243, 0.149, -0.031, 0.037, -0.01, -0.006, -0.094, -0.174, -0.144, -0.107, -0.048, 0.142, 0.343, 0.307, 0.296, 0.287, 0.159, 0.143, 0.056, 0.111, 0.06, 0.049, 0.126, 0.107, 0.126, 0.201, 0.321, 0.288, 0.288, 0.334, 0.291, 0.267, 0.247, 0.286, 0.336, 0.297, 0.131, 0.055, 0.035, -0.023, -0.041, -0.106, -0.249, -0.24, -0.422, -0.374, -0.328, -0.237, -0.208, -0.265, -0.404, -0.473, -0.559, -0.573, -0.567, -0.614, -0.608, -0.598, -0.547, -0.499, -0.478, -0.415, -0.321, -0.109, -0.084, -0.098, -0.133, -0.227, -0.244, -0.193, -0.06, -0.041, -0.076, 0.067, 0.125, 0.21, 0.481, 0.511, 0.532, 0.227, 0.142, 0.378, 0.515, 0.367, 0.152, 0.049, 0.146, 0.119, -0.047, -0.051, 0.047, 0.114, 0.237, 0.351, 0.577, 0.438, 0.18, 0.191, 0.28, 0.274, 0.447, 0.416, 0.317, 0.289, 0.12, 0.101, 0.361, 0.536, 0.576, 0.723, 0.622, 0.525, 0.509, 0.568, 0.538, 0.533, 0.489, 0.462, 0.464, 0.485, 0.55, 0.601, 0.55, 0.61, 0.652, 0.766, 0.76], "flagship_prob": [16.5, 14.3, 14.8, 10.8, 10.8, 14.0, 12.8, 8.1, 6.2, 6.1, 7.8, 7.7, 4.2, 4.0, 2.7, 2.1, 1.5, 1.3, 1.4, 1.6, 2.0, 1.7, 1.0, 0.8, 0.6, 0.4, 0.4, 0.2, 0.2, 0.3, 0.3, 0.4, 0.4, 0.2, 0.2, 0.3, 0.3, 0.5, 0.8, 0.7, 0.7, 1.0, 1.2, 1.4, 2.0, 2.3, 1.5, 1.3, 1.2, 1.3, 0.9, 0.5, 0.8, 0.9, 0.9, 1.2, 1.1, 1.2, 1.4, 2.7, 3.2, 5.1, 6.7, 7.2, 11.5, 14.7, 12.6, 10.1, 11.9, 13.9, 16.5, 16.5, 15.4, 11.2, 8.0, 6.0, 5.0, 4.4, 5.0, 5.8, 4.9, 6.2, 9.3, 7.3, 6.1, 7.2, 6.1, 4.9, 5.4, 6.0, 9.3, 9.4, 8.4, 10.4, 14.1, 15.4, 17.5, 17.8, 15.8, 14.8, 15.4, 17.2, 17.5, 18.4, 22.4, 16.5, 18.8, 21.4, 19.4, 16.6, 13.5, 12.3, 10.6, 7.8, 8.6, 8.8, 8.6, 8.5, 11.5, 10.2, 7.7, 11.4, 16.5, 20.2, 15.4, 18.9, 24.4, 31.2, 30.0, 33.5, 35.2, 37.0, 25.9, 22.1, 18.0, 8.3, 4.7, 4.6, 4.9, 5.7, 3.1, 2.0, 1.2, 0.4, 0.4, 0.6, 0.4, 0.4, 0.4, 0.6, 0.9, 1.5, 2.6, 2.2, 1.1, 1.1, 1.0, 1.3, 1.4, 1.1, 1.8, 2.0, 0.7, 0.4, 0.5, 0.5, 0.5, 0.5, 0.5, 0.7, 1.0, 0.4, 0.3, 0.4, 0.6, 1.1, 1.8, 2.2, 3.0, 3.3, 4.1, 5.6, 4.8, 6.0, 8.1, 10.7, 11.5, 13.1, 13.6, 14.0, 15.2, 16.3, 22.8, 23.5, 22.2, 19.2, 19.2, 20.4, 23.5, 27.6, 27.8, 29.8, 32.9, 31.8, 30.4, 32.2, 33.7, 29.6, 25.7, 17.7, 22.8, 18.0, 15.6, 15.6, 12.4, 10.0, 11.1, 5.6, 2.5, 2.1, 2.9, 2.6, 2.1, 2.8, 1.6, 0.7, 0.5, 2.1, 2.1, 1.6, 1.5, 1.2, 0.7, 0.3, 0.4, 0.4, 0.5, 0.5, 0.5, 0.3, 0.3, 0.3, 0.3, 0.3, 0.5, 0.7, 1.1, 1.7, 1.8, 2.0, 1.5, 0.7, 0.6, 0.4, 0.5, 0.4, 0.7, 0.9, 0.9, 2.4, 3.7, 3.0, 3.5, 3.7, 3.8, 4.1, 3.1, 3.7, 5.1, 6.2, 7.0, 5.9, 5.7, 5.4, 6.0, 5.4, 4.3, 4.1, 4.2, 5.1, 4.1, 2.5, 1.7, 1.3, 1.2, 1.6, 1.4, 1.1, 1.1, 1.4, 1.4, 1.4, 1.7, 1.6, 1.8, 2.1, 1.8, 2.4, 2.3, 2.8, 4.3, 3.7, 3.5, 3.9, 2.8, 2.2, 2.4, 3.1, 2.9, 3.3, 2.9, 3.5, 4.4, 6.7, 5.8, 5.9, 6.2, 7.5, 9.0, 8.4, 7.7, 7.0, 5.2, 3.6, 3.9, 4.0, 4.9, 6.5, 7.2, 8.9, 8.5, 9.0, 9.3, 8.2, 9.8, 10.2, 9.3, 8.2, 9.6, 9.9, 9.8, 10.9, 11.8, 12.6, 12.5, 12.2, 13.5, 18.1, 20.0, 20.9, 22.9, 23.3, 25.1, 28.0, 26.8, 32.4, 29.8, 24.9, 21.2, 20.4, 21.7, 26.4, 16.3, 17.2, 16.9, 16.5, 17.7, 16.8, 16.5, 14.8, 13.6, 12.9, 11.0, 8.8, 5.9, 5.6, 5.8, 6.6, 8.3, 8.7, 7.8, 6.2, 6.4, 7.2, 5.7, 5.8, 5.2, 3.6, 3.9, 5.4, 15.1, 21.2, 19.2, 21.4, 31.2, 39.2, 47.9, 45.3, 48.4, 58.3, 60.8, 57.2, 55.8, 50.7, 46.3, 37.2, 42.3, 52.8, 51.4, 48.4, 48.4, 40.8, 42.3, 46.0, 46.5, 51.8, 47.7, 34.3, 27.2, 23.8, 18.8, 21.9, 24.5, 24.7, 22.9, 23.3, 23.5, 23.5, 22.4, 21.7, 20.5, 16.8, 15.5, 17.1, 15.5, 14.5, 12.4, 13.3]}, "trajectory": {"dates": ["1953-04", "1953-05", "1953-06", "1953-07", "1953-08", "1953-09", "1953-10", "1953-11", "1953-12", "1954-01", "1954-02", "1954-03", "1954-04", "1954-05", "1954-06", "1954-07", "1954-08", "1954-09", "1954-10", "1954-11", "1954-12", "1955-01", "1955-02", "1955-03", "1955-04", "1955-05", "1955-06", "1955-07", "1955-08", "1955-09", "1955-10", "1955-11", "1955-12", "1956-01", "1956-02", "1956-03", "1956-04", "1956-05", "1956-06", "1956-07", "1956-08", "1956-09", "1956-10", "1956-11", "1956-12", "1957-01", "1957-02", "1957-03", "1957-04", "1957-05", "1957-06", "1957-07", "1957-08", "1957-09", "1957-10", "1957-11", "1957-12", "1958-01", "1958-02", "1958-03", "1958-04", "1958-05", "1958-06", "1958-07", "1958-08", "1958-09", "1958-10", "1958-11", "1958-12", "1959-01", "1959-02", "1959-03", "1959-04", "1959-05", "1959-06", "1959-07", "1959-08", "1959-09", "1959-10", "1959-11", "1959-12", "1960-01", "1960-02", "1960-03", "1960-04", "1960-05", "1960-06", "1960-07", "1960-08", "1960-09", "1960-10", "1960-11", "1960-12", "1961-01", "1961-02", "1961-03", "1961-04", "1961-05", "1961-06", "1961-07", "1961-08", "1961-09", "1961-10", "1961-11", "1961-12", "1962-01", "1962-02", "1962-03", "1962-04", "1962-05", "1962-06", "1962-07", "1962-08", "1962-09", "1962-10", "1962-11", "1962-12", "1963-01", "1963-02", "1963-03", "1963-04", "1963-05", "1963-06", "1963-07", "1963-08", "1963-09", "1963-10", "1963-11", "1963-12", "1964-01", "1964-02", "1964-03", "1964-04", "1964-05", "1964-06", "1964-07", "1964-08", "1964-09", "1964-10", "1964-11", "1964-12", "1965-01", "1965-02", "1965-03", "1965-04", "1965-05", "1965-06", "1965-07", "1965-08", "1965-09", "1965-10", "1965-11", "1965-12", "1966-01", "1966-02", "1966-03", "1966-04", "1966-05", "1966-06", "1966-07", "1966-08", "1966-09", "1966-10", "1966-11", "1966-12", "1967-01", "1967-02", "1967-03", "1967-04", "1967-05", "1967-06", "1967-07", "1967-08", "1967-09", "1967-10", "1967-11", "1967-12", "1968-01", "1968-02", "1968-03", "1968-04", "1968-05", "1968-06", "1968-07", "1968-08", "1968-09", "1968-10", "1968-11", "1968-12", "1969-01", "1969-02", "1969-03", "1969-04", "1969-05", "1969-06", "1969-07", "1969-08", "1969-09", "1969-10", "1969-11", "1969-12", "1970-01", "1970-02", "1970-03", "1970-04", "1970-05", "1970-06", "1970-07", "1970-08", "1970-09", "1970-10", "1970-11", "1970-12", "1971-01", "1971-02", "1971-03", "1971-04", "1971-05", "1971-06", "1971-07", "1971-08", "1971-09", "1971-10", "1971-11", "1971-12", "1972-01", "1972-02", "1972-03", "1972-04", "1972-05", "1972-06", "1972-07", "1972-08", "1972-09", "1972-10", "1972-11", "1972-12", "1973-01", "1973-02", "1973-03", "1973-04", "1973-05", "1973-06", "1973-07", "1973-08", "1973-09", "1973-10", "1973-11", "1973-12", "1974-01", "1974-02", "1974-03", "1974-04", "1974-05", "1974-06", "1974-07", "1974-08", "1974-09", "1974-10", "1974-11", "1974-12", "1975-01", "1975-02", "1975-03", "1975-04", "1975-05", "1975-06", "1975-07", "1975-08", "1975-09", "1975-10", "1975-11", "1975-12", "1976-01", "1976-02", "1976-03", "1976-04", "1976-05", "1976-06", "1976-07", "1976-08", "1976-09", "1976-10", "1976-11", "1976-12", "1977-01", "1977-02", "1977-03", "1977-04", "1977-05", "1977-06", "1977-07", "1977-08", "1977-09", "1977-10", "1977-11", "1977-12", "1978-01", "1978-02", "1978-03", "1978-04", "1978-05", "1978-06", "1978-07", "1978-08", "1978-09", "1978-10", "1978-11", "1978-12", "1979-01", "1979-02", "1979-03", "1979-04", "1979-05", "1979-06", "1979-07", "1979-08", "1979-09", "1979-10", "1979-11", "1979-12", "1980-01", "1980-02", "1980-03", "1980-04", "1980-05", "1980-06", "1980-07", "1980-08", "1980-09", "1980-10", "1980-11", "1980-12", "1981-01", "1981-02", "1981-03", "1981-04", "1981-05", "1981-06", "1981-07", "1981-08", "1981-09", "1981-10", "1981-11", "1981-12", "1982-01", "1982-02", "1982-03", "1982-04", "1982-05", "1982-06", "1982-07", "1982-08", "1982-09", "1982-10", "1982-11", "1982-12", "1983-01", "1983-02", "1983-03", "1983-04", "1983-05", "1983-06", "1983-07", "1983-08", "1983-09", "1983-10", "1983-11", "1983-12", "1984-01", "1984-02", "1984-03", "1984-04", "1984-05", "1984-06", "1984-07", "1984-08", "1984-09", "1984-10", "1984-11", "1984-12", "1985-01", "1985-02", "1985-03", "1985-04", "1985-05", "1985-06", "1985-07", "1985-08", "1985-09", "1985-10", "1985-11", "1985-12", "1986-01", "1986-02", "1986-03", "1986-04", "1986-05", "1986-06", "1986-07", "1986-08", "1986-09", "1986-10", "1986-11", "1986-12", "1987-01", "1987-02", "1987-03", "1987-04", "1987-05", "1987-06", "1987-07", "1987-08", "1987-09", "1987-10", "1987-11", "1987-12", "1988-01", "1988-02", "1988-03", "1988-04", "1988-05", "1988-06", "1988-07", "1988-08", "1988-09", "1988-10", "1988-11", "1988-12", "1989-01", "1989-02", "1989-03", "1989-04", "1989-05", "1989-06", "1989-07", "1989-08", "1989-09", "1989-10", "1989-11", "1989-12", "1990-01", "1990-02", "1990-03", "1990-04", "1990-05", "1990-06", "1990-07", "1990-08", "1990-09", "1990-10", "1990-11", "1990-12", "1991-01", "1991-02", "1991-03", "1991-04", "1991-05", "1991-06", "1991-07", "1991-08", "1991-09", "1991-10", "1991-11", "1991-12", "1992-01", "1992-02", "1992-03", "1992-04", "1992-05", "1992-06", "1992-07", "1992-08", "1992-09", "1992-10", "1992-11", "1992-12", "1993-01", "1993-02", "1993-03", "1993-04", "1993-05", "1993-06", "1993-07", "1993-08", "1993-09", "1993-10", "1993-11", "1993-12", "1994-01", "1994-02", "1994-03", "1994-04", "1994-05", "1994-06", "1994-07", "1994-08", "1994-09", "1994-10", "1994-11", "1994-12", "1995-01", "1995-02", "1995-03", "1995-04", "1995-05", "1995-06", "1995-07", "1995-08", "1995-09", "1995-10", "1995-11", "1995-12", "1996-01", "1996-02", "1996-03", "1996-04", "1996-05", "1996-06", "1996-07", "1996-08", "1996-09", "1996-10", "1996-11", "1996-12", "1997-01", "1997-02", "1997-03", "1997-04", "1997-05", "1997-06", "1997-07", "1997-08", "1997-09", "1997-10", "1997-11", "1997-12", "1998-01", "1998-02", "1998-03", "1998-04", "1998-05", "1998-06", "1998-07", "1998-08", "1998-09", "1998-10", "1998-11", "1998-12", "1999-01", "1999-02", "1999-03", "1999-04", "1999-05", "1999-06", "1999-07", "1999-08", "1999-09", "1999-10", "1999-11", "1999-12", "2000-01", "2000-02", "2000-03", "2000-04", "2000-05", "2000-06", "2000-07", "2000-08", "2000-09", "2000-10", "2000-11", "2000-12", "2001-01", "2001-02", "2001-03", "2001-04", "2001-05", "2001-06", "2001-07", "2001-08", "2001-09", "2001-10", "2001-11", "2001-12", "2002-01", "2002-02", "2002-03", "2002-04", "2002-05", "2002-06", "2002-07", "2002-08", "2002-09", "2002-10", "2002-11", "2002-12", "2003-01", "2003-02", "2003-03", "2003-04", "2003-05", "2003-06", "2003-07", "2003-08", "2003-09", "2003-10", "2003-11", "2003-12", "2004-01", "2004-02", "2004-03", "2004-04", "2004-05", "2004-06", "2004-07", "2004-08", "2004-09", "2004-10", "2004-11", "2004-12", "2005-01", "2005-02", "2005-03", "2005-04", "2005-05", "2005-06", "2005-07", "2005-08", "2005-09", "2005-10", "2005-11", "2005-12", "2006-01", "2006-02", "2006-03", "2006-04", "2006-05", "2006-06", "2006-07", "2006-08", "2006-09", "2006-10", "2006-11", "2006-12", "2007-01", "2007-02", "2007-03", "2007-04", "2007-05", "2007-06", "2007-07", "2007-08", "2007-09", "2007-10", "2007-11", "2007-12", "2008-01", "2008-02", "2008-03", "2008-04", "2008-05", "2008-06", "2008-07", "2008-08", "2008-09", "2008-10", "2008-11", "2008-12", "2009-01", "2009-02", "2009-03", "2009-04", "2009-05", "2009-06", "2009-07", "2009-08", "2009-09", "2009-10", "2009-11", "2009-12", "2010-01", "2010-02", "2010-03", "2010-04", "2010-05", "2010-06", "2010-07", "2010-08", "2010-09", "2010-10", "2010-11", "2010-12", "2011-01", "2011-02", "2011-03", "2011-04", "2011-05", "2011-06", "2011-07", "2011-08", "2011-09", "2011-10", "2011-11", "2011-12", "2012-01", "2012-02", "2012-03", "2012-04", "2012-05", "2012-06", "2012-07", "2012-08", "2012-09", "2012-10", "2012-11", "2012-12", "2013-01", "2013-02", "2013-03", "2013-04", "2013-05", "2013-06", "2013-07", "2013-08", "2013-09", "2013-10", "2013-11", "2013-12", "2014-01", "2014-02", "2014-03", "2014-04", "2014-05", "2014-06", "2014-07", "2014-08", "2014-09", "2014-10", "2014-11", "2014-12", "2015-01", "2015-02", "2015-03", "2015-04", "2015-05", "2015-06", "2015-07", "2015-08", "2015-09", "2015-10", "2015-11", "2015-12", "2016-01", "2016-02", "2016-03", "2016-04", "2016-05", "2016-06", "2016-07", "2016-08", "2016-09", "2016-10", "2016-11", "2016-12", "2017-01", "2017-02", "2017-03", "2017-04", "2017-05", "2017-06", "2017-07", "2017-08", "2017-09", "2017-10", "2017-11", "2017-12", "2018-01", "2018-02", "2018-03", "2018-04", "2018-05", "2018-06", "2018-07", "2018-08", "2018-09", "2018-10", "2018-11", "2018-12", "2019-01", "2019-02", "2019-03", "2019-04", "2019-05", "2019-06", "2019-07", "2019-08", "2019-09", "2019-10", "2019-11", "2019-12", "2020-01", "2020-02", "2020-03", "2020-04", "2020-05", "2020-06", "2020-07", "2020-08", "2020-09", "2020-10", "2020-11", "2020-12", "2021-01", "2021-02", "2021-03", "2021-04", "2021-05", "2021-06", "2021-07", "2021-08", "2021-09", "2021-10", "2021-11", "2021-12", "2022-01", "2022-02", "2022-03", "2022-04", "2022-05", "2022-06", "2022-07", "2022-08", "2022-09", "2022-10", "2022-11", "2022-12", "2023-01", "2023-02", "2023-03", "2023-04", "2023-05", "2023-06", "2023-07", "2023-08", "2023-09", "2023-10", "2023-11", "2023-12", "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12", "2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"], "prob": [15.5, 12.3, 11.0, 12.3, 12.0, 10.2, 8.2, 8.6, 11.1, 8.1, 6.5, 7.7, 7.9, 5.7, 4.9, 5.9, 6.9, 7.5, 6.8, 6.1, 7.6, 7.3, 6.6, 7.2, 9.4, 8.0, 7.5, 8.1, 10.3, 12.2, 15.4, 15.4, 18.8, 17.7, 17.2, 14.5, 16.3, 18.1, 17.4, 13.4, 14.3, 16.9, 18.4, 17.5, 19.4, 19.9, 21.7, 20.2, 18.9, 16.9, 17.4, 13.8, 16.6, 19.2, 19.2, 18.9, 22.9, 15.4, 6.3, 5.2, 4.8, 3.5, 2.9, 2.4, 4.3, 7.9, 9.3, 10.3, 10.1, 9.0, 8.4, 9.1, 9.3, 6.7, 9.7, 9.0, 10.5, 15.5, 17.8, 19.4, 22.4, 19.5, 17.1, 11.7, 10.5, 10.4, 5.2, 5.8, 6.5, 7.9, 5.8, 6.0, 5.8, 5.8, 7.6, 7.6, 6.5, 7.1, 6.1, 5.2, 5.4, 5.1, 5.6, 6.8, 6.8, 7.6, 8.0, 8.9, 9.9, 9.2, 9.2, 10.1, 9.4, 9.0, 9.1, 10.1, 11.1, 11.9, 11.0, 10.6, 10.3, 11.0, 11.0, 12.9, 14.9, 14.7, 15.2, 16.1, 15.9, 15.4, 15.8, 14.9, 13.9, 14.4, 14.8, 14.3, 14.8, 15.1, 15.8, 17.4, 20.0, 19.4, 21.0, 21.0, 21.2, 20.4, 18.9, 19.7, 18.9, 19.5, 20.4, 19.7, 21.7, 25.7, 22.8, 21.0, 23.6, 23.5, 20.5, 22.1, 21.4, 29.8, 32.9, 29.2, 28.4, 28.8, 24.7, 21.0, 14.0, 8.5, 6.6, 11.6, 10.9, 12.4, 11.9, 10.8, 14.3, 17.1, 16.3, 16.5, 21.4, 22.2, 22.4, 22.6, 20.2, 21.2, 21.9, 21.5, 24.7, 28.0, 24.7, 21.0, 24.9, 21.0, 23.6, 31.6, 31.8, 24.7, 24.2, 28.0, 29.4, 27.6, 24.0, 18.4, 12.4, 10.3, 9.4, 10.9, 9.8, 8.3, 7.1, 6.0, 6.3, 4.5, 2.0, 2.3, 3.7, 2.5, 4.7, 7.8, 5.5, 6.8, 6.7, 5.8, 3.9, 1.6, 1.0, 2.2, 1.8, 1.9, 2.7, 3.0, 2.7, 4.1, 4.9, 6.5, 8.2, 10.5, 10.6, 15.8, 18.9, 17.7, 31.8, 44.9, 53.9, 52.3, 34.8, 50.0, 41.0, 42.6, 29.2, 41.9, 43.5, 39.6, 33.3, 21.4, 45.8, 26.4, 18.4, 22.2, 21.0, 8.6, 4.1, 2.6, 1.5, 1.1, 1.7, 3.9, 3.7, 3.5, 2.8, 1.6, 1.6, 1.0, 1.0, 1.3, 1.3, 1.3, 1.9, 1.5, 1.5, 1.8, 1.8, 1.7, 1.7, 1.6, 1.3, 1.0, 1.1, 1.8, 2.5, 2.9, 4.0, 6.2, 7.6, 6.6, 5.6, 6.3, 5.9, 4.8, 4.2, 3.8, 4.9, 5.6, 7.8, 16.5, 15.4, 22.9, 27.4, 31.0, 30.4, 33.3, 31.6, 33.3, 29.0, 31.8, 36.1, 46.0, 56.9, 50.9, 62.6, 52.3, 35.2, 78.4, 64.3, 5.8, 1.3, 2.7, 3.7, 8.6, 23.6, 48.8, 81.7, 78.4, 61.5, 30.8, 26.2, 73.9, 53.7, 40.1, 37.8, 15.8, 5.7, 1.7, 1.0, 2.3, 11.6, 9.2, 9.3, 6.2, 4.4, 1.5, 0.1, 0.1, 0.6, 1.8, 1.5, 1.5, 1.5, 2.9, 2.7, 2.7, 3.3, 2.4, 1.8, 1.4, 1.0, 0.9, 1.1, 1.2, 1.2, 1.1, 0.9, 0.3, 0.3, 0.6, 2.5, 2.9, 2.0, 0.9, 0.4, 0.3, 0.6, 0.5, 0.4, 0.5, 0.6, 0.6, 0.6, 0.5, 0.7, 1.7, 2.9, 3.0, 5.5, 8.8, 8.6, 6.0, 5.8, 6.7, 5.5, 2.6, 2.5, 4.0, 5.9, 5.4, 5.4, 5.4, 2.1, 0.9, 1.3, 1.2, 1.3, 0.8, 0.4, 0.6, 0.6, 1.0, 1.7, 1.4, 1.1, 1.1, 1.9, 2.3, 2.7, 4.9, 6.8, 9.0, 10.6, 13.1, 15.5, 16.9, 17.1, 18.6, 23.6, 23.5, 22.2, 18.4, 19.5, 22.8, 22.2, 16.5, 14.3, 14.8, 10.8, 10.8, 14.0, 12.8, 8.1, 6.2, 6.1, 7.8, 7.7, 4.2, 4.0, 2.7, 2.1, 1.5, 1.3, 1.4, 1.6, 2.0, 1.7, 1.0, 0.8, 0.6, 0.4, 0.4, 0.2, 0.2, 0.3, 0.3, 0.4, 0.4, 0.2, 0.2, 0.3, 0.3, 0.5, 0.8, 0.7, 0.7, 1.0, 1.2, 1.4, 2.0, 2.3, 1.5, 1.3, 1.2, 1.3, 0.9, 0.5, 0.8, 0.9, 0.9, 1.2, 1.1, 1.2, 1.4, 2.7, 3.2, 5.1, 6.7, 7.2, 11.5, 14.7, 12.6, 10.1, 11.9, 13.9, 16.5, 16.5, 15.4, 11.2, 8.0, 6.0, 5.0, 4.4, 5.0, 5.8, 4.9, 6.2, 9.3, 7.3, 6.1, 7.2, 6.1, 4.9, 5.4, 6.0, 9.3, 9.4, 8.4, 10.4, 14.1, 15.4, 17.5, 17.8, 15.8, 14.8, 15.4, 17.2, 17.5, 18.4, 22.4, 16.5, 18.8, 21.4, 19.4, 16.6, 13.5, 12.3, 10.6, 7.8, 8.6, 8.8, 8.6, 8.5, 11.5, 10.2, 7.7, 11.4, 16.5, 20.2, 15.4, 18.9, 24.4, 31.2, 30.0, 33.5, 35.2, 37.0, 25.9, 22.1, 18.0, 8.3, 4.7, 4.6, 4.9, 5.7, 3.1, 2.0, 1.2, 0.4, 0.4, 0.6, 0.4, 0.4, 0.4, 0.6, 0.9, 1.5, 2.6, 2.2, 1.1, 1.1, 1.0, 1.3, 1.4, 1.1, 1.8, 2.0, 0.7, 0.4, 0.5, 0.5, 0.5, 0.5, 0.5, 0.7, 1.0, 0.4, 0.3, 0.4, 0.6, 1.1, 1.8, 2.2, 3.0, 3.3, 4.1, 5.6, 4.8, 6.0, 8.1, 10.7, 11.5, 13.1, 13.6, 14.0, 15.2, 16.3, 22.8, 23.5, 22.2, 19.2, 19.2, 20.4, 23.5, 27.6, 27.8, 29.8, 32.9, 31.8, 30.4, 32.2, 33.7, 29.6, 25.7, 17.7, 22.8, 18.0, 15.6, 15.6, 12.4, 10.0, 11.1, 5.6, 2.5, 2.1, 2.9, 2.6, 2.1, 2.8, 1.6, 0.7, 0.5, 2.1, 2.1, 1.6, 1.5, 1.2, 0.7, 0.3, 0.4, 0.4, 0.5, 0.5, 0.5, 0.3, 0.3, 0.3, 0.3, 0.3, 0.5, 0.7, 1.1, 1.7, 1.8, 2.0, 1.5, 0.7, 0.6, 0.4, 0.5, 0.4, 0.7, 0.9, 0.9, 2.4, 3.7, 3.0, 3.5, 3.7, 3.8, 4.1, 3.1, 3.7, 5.1, 6.2, 7.0, 5.9, 5.7, 5.4, 6.0, 5.4, 4.3, 4.1, 4.2, 5.1, 4.1, 2.5, 1.7, 1.3, 1.2, 1.6, 1.4, 1.1, 1.1, 1.4, 1.4, 1.4, 1.7, 1.6, 1.8, 2.1, 1.8, 2.4, 2.3, 2.8, 4.3, 3.7, 3.5, 3.9, 2.8, 2.2, 2.4, 3.1, 2.9, 3.3, 2.9, 3.5, 4.4, 6.7, 5.8, 5.9, 6.2, 7.5, 9.0, 8.4, 7.7, 7.0, 5.2, 3.6, 3.9, 4.0, 4.9, 6.5, 7.2, 8.9, 8.5, 9.0, 9.3, 8.2, 9.8, 10.2, 9.3, 8.2, 9.6, 9.9, 9.8, 10.9, 11.8, 12.6, 12.5, 12.2, 13.5, 18.1, 20.0, 20.9, 22.9, 23.3, 25.1, 28.0, 26.8, 32.4, 29.8, 24.9, 21.2, 20.4, 21.7, 26.4, 16.3, 17.2, 16.9, 16.5, 17.7, 16.8, 16.5, 14.8, 13.6, 12.9, 11.0, 8.8, 5.9, 5.6, 5.8, 6.6, 8.3, 8.7, 7.8, 6.2, 6.4, 7.2, 5.7, 5.8, 5.2, 3.6, 3.9, 5.4, 15.1, 21.2, 19.2, 21.4, 31.2, 39.2, 47.9, 45.3, 48.4, 58.3, 60.8, 57.2, 55.8, 50.7, 46.3, 37.2, 42.3, 52.8, 51.4, 48.4, 48.4, 40.8, 42.3, 46.0, 46.5, 51.8, 47.7, 34.3, 27.2, 23.8, 18.8, 21.9, 24.5, 24.7, 22.9, 23.3, 23.5, 23.5, 22.4, 21.7, 20.5, 16.8, 15.5, 17.1, 15.5, 14.5, 12.4, 13.3], "recessions": [{"start": "1953-08", "end": "1954-06"}, {"start": "1957-09", "end": "1958-05"}, {"start": "1960-05", "end": "1961-03"}, {"start": "1970-01", "end": "1970-12"}, {"start": "1973-12", "end": "1975-04"}, {"start": "1980-02", "end": "1980-08"}, {"start": "1981-08", "end": "1982-12"}, {"start": "1990-08", "end": "1991-04"}, {"start": "2001-04", "end": "2001-12"}, {"start": "2008-01", "end": "2009-07"}, {"start": "2020-03", "end": "2020-05"}]}, "tp_recessions": [{"start": "1990-08", "end": "1991-04"}, {"start": "2001-04", "end": "2001-12"}, {"start": "2008-01", "end": "2009-07"}, {"start": "2020-03", "end": "2020-05"}], "databuffet_on": false, "data_source": "FRED only (Aa leg substituted with FRED Aaa; Moody's DataBuffet off)"};
+const lvlColor = p => p < 25 ? "var(--green)" : (p < 50 ? "var(--amber)" : "var(--red)");
 
-/* ---------- header ---------- */
-document.getElementById('asof').textContent =
-  'As of ' + DATA.as_of + ' · headline performance: real-time AUC ' + DATA.auc.realtime +
-  ' over ' + DATA.auc.onsets + ' recession onsets (' + DATA.auc.rt_start + '–' + DATA.auc.rt_end +
-  ')  ·  in-sample AUC ' + DATA.auc.insample + ' for contrast';
-
-/* ---------- gauge (semicircle) ---------- */
+/* header + headline */
+document.getElementById("sub").textContent =
+  "Generated " + DATA.generated + ". Daily curve as of " + (DATA.as_of_daily||"n/a")
+  + "; monthly panel through " + DATA.monthly_through + ".";
 (function(){
-  const p = DATA.gauge.probability;
-  const cx=120, cy=130, r=95;
-  const col = p<25?'var(--green)': p<50?'var(--amber)':'var(--red)';
-  const ang = Math.PI*(1 - p/100);                 // 180deg (0%) -> 0deg (100%)
-  const pol = a => [cx + r*Math.cos(a), cy - r*Math.sin(a)];
-  const arc = (a0,a1,color,w)=>{
-    const [x0,y0]=pol(a0), [x1,y1]=pol(a1);
-    const large = (a0-a1) > Math.PI ? 1 : 0;
-    return `<path d="M${x0} ${y0} A${r} ${r} 0 ${large} 1 ${x1} ${y1}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`;
-  };
-  const [nx,ny]=pol(ang);
-  let svg = arc(Math.PI,0,'#e7eaf1',16) + arc(Math.PI,ang,col,16);
-  svg += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="3"/>`;
-  svg += `<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/>`;
-  svg += `<text x="20" y="145" font-size="11" fill="var(--muted)">0%</text>`;
-  svg += `<text x="205" y="145" font-size="11" fill="var(--muted)">100%</text>`;
-  document.getElementById('gauge').innerHTML = svg;
-  document.getElementById('gaugeNum').textContent = p + '%';
-  document.getElementById('gaugeNum').style.color = col;
-  document.getElementById('gaugeLbl').textContent = DATA.gauge.label;
+  const r=DATA.rule, h=document.getElementById("headline");
+  h.className="headline "+(r.firing?"h-fire":"h-clear");
+  h.innerHTML="Recession signal: "+(r.firing?"FIRING":"NOT firing")
+    +"<small>"+r.count_met+" of 3 conditions met — the rule calls a recession only when <b>all three</b> confirm "
+    +"(12-month ≥ "+r.thresholds.flag+"%, 3-month ≥ "+r.thresholds.aug+"%, term premium ≥ "+r.thresholds.tp_bp+" bp).</small>";
+  document.getElementById("plain").innerHTML="<b>In plain English:</b> "+DATA.plain_english;
 })();
 
-/* ---------- character banner ---------- */
+/* gauge */
+function gauge(p){
+  const cx=120,cy=120,r=86,col=lvlColor(p);
+  const ang=Math.PI*(1-p/100),pol=a=>[cx+r*Math.cos(a),cy-r*Math.sin(a)];
+  const arc=(a0,a1,c)=>{const[x0,y0]=pol(a0),[x1,y1]=pol(a1);const lg=(a0-a1)>Math.PI?1:0;
+    return `<path d="M${x0} ${y0} A${r} ${r} 0 ${lg} 1 ${x1} ${y1}" fill="none" stroke="${c}" stroke-width="14" stroke-linecap="round"/>`;};
+  const[nx,ny]=pol(ang);
+  return `<svg viewBox="0 0 240 132">`+arc(Math.PI,0,"#e7eaf1")+arc(Math.PI,ang,col)
+    +`<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="3"/>`
+    +`<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/></svg>`;
+}
+
+/* three signal cards */
 (function(){
-  const b = document.getElementById('banner');
-  b.className = 'banner ' + (DATA.character.class==='warn'?'b-warn':DATA.character.class==='nocc'?'b-nocc':'b-clear');
-  b.innerHTML = DATA.character.short + '<small>' + DATA.character.full + '</small>';
+  document.getElementById("cards").innerHTML = DATA.signals.map(s=>{
+    const met = s.met?'<span class="met-yes">✓ met</span>':'<span class="met-no">— not met</span>';
+    if(s.gauge){
+      return `<div class="sig"><div class="no">Signal ${s.num}</div><div class="nm">${s.name}</div>
+        <div class="subq">${s.sub}</div>${gauge(s.value)}
+        <div class="big" style="color:${lvlColor(s.value)}">${s.value}%</div>
+        <div class="model">${s.model}</div><div class="gate">${s.fires_text} · ${met}</div>
+        ${s.source_note?`<div class="model" style="margin-top:4px">${s.source_note}</div>`:""}</div>`;
+    }
+    const tp=DATA.term_premium, badge=tp.tp_class==="compressed"?"b-red":"b-green";
+    return `<div class="sig"><div class="no">Signal ${s.num}</div><div class="nm">${s.name}</div>
+      <div class="subq">${s.sub}</div>
+      <div class="big" style="color:${tp.tp_class==='compressed'?'var(--red)':'var(--teal)'}">${tp.tp_bp>=0?'+':''}${tp.tp_bp} bp</div>
+      <div class="model">${s.model}</div>
+      <span class="badge ${badge}">${s.tp_class} · ~${s.percentile}th pctile</span>
+      <div class="gate">${s.fires_text} · ${met}</div>
+      <div class="model" style="margin-top:4px">${s.acm_note}</div></div>`;
+  }).join("");
+  document.getElementById("ruleNote").innerHTML =
+    "In-sample the rule catches 7 of 8 modern recessions with zero false alarms (the miss is COVID-2020, "
+    + "which no yield-curve model predicted) — but its thresholds are tuned on that same history, so read it "
+    + "as a clean in-sample pattern, <b>not a validated forecast</b>. The probabilities themselves are validated.";
 })();
 
-/* ---------- fragility lights ---------- */
+/* inputs table */
 (function(){
-  const host = document.getElementById('lights');
-  host.innerHTML = DATA.lights.map(L=>{
-    const col = L.on ? 'var(--red)' : 'var(--green)';
-    return `<div class="light"><span class="dot" style="background:${col}"></span>
-      <div><div class="nm">${L.name}</div><div class="vl">${L.value}</div>
-      <div class="th">${L.threshold}</div></div></div>`;
-  }).join('');
+  let h="<thead><tr><th>spread</th><th>daily (pp)</th><th>latest monthly (pp)</th><th>inverted?</th></tr></thead><tbody>";
+  DATA.inputs.spreads.forEach(s=>{
+    h+=`<tr><td>${s.label}</td><td>${s.daily>=0?'+':''}${s.daily}</td><td>${s.monthly>=0?'+':''}${s.monthly}</td>`
+      +`<td class="${s.inverted?'inv-yes':''}">${s.inverted?'yes':'no'}</td></tr>`;
+  });
+  document.getElementById("inputs").innerHTML=h+"</tbody>";
 })();
 
-/* ---------- trajectory chart ---------- */
+/* probability x horizon table */
 (function(){
-  const W=1000,H=430, m={t:18,r:16,b:34,l:42};
-  const pw=W-m.l-m.r, ph=H-m.t-m.b;
-  const d=DATA.series.dates, N=d.length;
-  const x=i=> m.l + (N<2?0:(i/(N-1))*pw);
-  const y=v=> m.t + (1 - v/100)*ph;
+  const p=DATA.prob_table;
+  let h="<thead><tr><th>horizon (months)</th>"+p.spreads.map(s=>`<th>${s.label}</th>`).join("")+"</tr></thead><tbody>";
+  p.horizons.forEach((hz,i)=>{ h+=`<tr><td>${hz}</td>`+p.spreads.map(s=>`<td>${s.vals[i]}%</td>`).join("")+"</tr>"; });
+  document.getElementById("probtable").innerHTML=h+"</tbody>";
+})();
+
+/* term-premium history chart */
+(function(){
+  const W=1000,H=360,m={t:14,r:42,b:26,l:38},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const d=DATA.tp_series.dates,N=d.length,tp=DATA.tp_series.term_premium,fp=DATA.tp_series.flagship_prob;
   const idx={}; d.forEach((s,i)=>idx[s]=i);
-  let s='';
-
-  // recession shaded bands
-  DATA.recessions.forEach(rc=>{
-    let a=idx[rc.start], b=idx[rc.end];
-    if(a===undefined && b===undefined) return;
-    if(a===undefined) a=0; if(b===undefined) b=N-1;
-    s += `<rect x="${x(a)}" y="${m.t}" width="${Math.max(1,x(b)-x(a))}" height="${ph}" fill="var(--band)"/>`;
-  });
-
-  // y gridlines + labels
-  [0,25,50,75,100].forEach(v=>{
-    s += `<line x1="${m.l}" y1="${y(v)}" x2="${W-m.r}" y2="${y(v)}" stroke="var(--line)"/>`;
-    s += `<text x="${m.l-8}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${v}%</text>`;
-  });
-
-  // x year ticks (every decade)
-  let lastDec=null;
-  d.forEach((str,i)=>{
-    const yr=+str.slice(0,4);
-    if(yr%10===0 && str.slice(5)==='01' && yr!==lastDec){
-      lastDec=yr;
-      s += `<line x1="${x(i)}" y1="${m.t}" x2="${x(i)}" y2="${m.t+ph}" stroke="var(--line)"/>`;
-      s += `<text x="${x(i)}" y="${H-12}" text-anchor="middle" font-size="11" fill="var(--muted)">${yr}</text>`;
-    }
-  });
-
-  // helper to build a polyline path, breaking on nulls
-  const path=(arr)=>{
-    let dstr='', pen=false;
-    arr.forEach((v,i)=>{ if(v===null){pen=false; return;}
-      dstr += (pen?'L':'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' '; pen=true; });
-    return dstr;
-  };
-
-  // fitted (light dashed reference)
-  s += `<path d="${path(DATA.series.fitted)}" fill="none" stroke="var(--grayline)"
-         stroke-width="1.6" stroke-dasharray="5 4" opacity="0.9"/>`;
-  // real-time (prominent solid)
-  s += `<path d="${path(DATA.series.realtime)}" fill="none" stroke="var(--blue)" stroke-width="2.4"/>`;
-
-  document.getElementById('chart').innerHTML = s;
-  document.getElementById('chartnote').textContent =
-    'Both lines show the probability of a recession 12 months ahead, dated at the forecast month, '
-    + 'so the line should rise before a shaded recession. The gap between the rosy fitted line and '
-    + 'the bumpier real-time line is exactly how much "knowing the future" flatters a backtest.';
+  const x=i=>m.l+(N<2?0:(i/(N-1))*pw);
+  const tv=tp.filter(v=>v!==null), tmin=Math.min(-1,Math.floor(Math.min(...tv))), tmax=Math.max(3,Math.ceil(Math.max(...tv)));
+  const yL=v=>m.t+(1-(v-tmin)/(tmax-tmin))*ph, yR=v=>m.t+(1-v/100)*ph, gate=DATA.term_premium.gate_pp;
+  let s="";
+  DATA.tp_recessions.forEach(rc=>{let a=idx[rc.start],b=idx[rc.end];if(a===undefined&&b===undefined)return;
+    if(a===undefined)a=0;if(b===undefined)b=N-1;s+=`<rect x="${x(a)}" y="${m.t}" width="${Math.max(1,x(b)-x(a))}" height="${ph}" fill="var(--band)"/>`;});
+  let run=null; tp.forEach((v,i)=>{const lo=v!==null&&v<gate; if(lo&&run===null)run=i;
+    if((!lo||i===N-1)&&run!==null){const e=lo?i:i-1;s+=`<rect x="${x(run)}" y="${m.t}" width="${Math.max(1,x(e)-x(run))}" height="${ph}" fill="#fde2e2" opacity="0.55"/>`;run=null;}});
+  s+=`<line x1="${m.l}" y1="${yL(gate)}" x2="${W-m.r}" y2="${yL(gate)}" stroke="var(--amber)" stroke-dasharray="5 3"/>`;
+  s+=`<text x="${m.l+4}" y="${yL(gate)-4}" font-size="10" fill="var(--amber)">50 bp veto gate</text>`;
+  s+=`<line x1="${m.l}" y1="${yL(0)}" x2="${W-m.r}" y2="${yL(0)}" stroke="#c9cfdb" stroke-dasharray="2 3"/>`;
+  for(let v=tmin;v<=tmax;v++) s+=`<text x="${m.l-6}" y="${yL(v)+4}" text-anchor="end" font-size="10" fill="var(--teal)">${v>0?"+":""}${v}</text>`;
+  let ld=null; d.forEach((str,i)=>{const yr=+str.slice(0,4); if(yr%10===0&&str.slice(5)==="01"&&yr!==ld){ld=yr;
+    s+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="10" fill="var(--muted)">${yr}</text>`;}});
+  const path=(arr,y)=>{let str="",pen=false;arr.forEach((v,i)=>{if(v===null){pen=false;return;}str+=(pen?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)+" ";pen=true;});return str;};
+  s+=`<path d="${path(fp,yR)}" fill="none" stroke="var(--red)" stroke-width="1.5" opacity="0.42"/>`;
+  s+=`<path d="${path(tp,yL)}" fill="none" stroke="var(--teal)" stroke-width="2.2"/>`;
+  const t=DATA.term_premium,li0=idx[t.tp_2022_23_date];
+  if(li0!==undefined) s+=`<circle cx="${x(li0)}" cy="${yL(t.tp_2022_23)}" r="4" fill="var(--red)"/><text x="${x(li0)}" y="${yL(t.tp_2022_23)-8}" text-anchor="middle" font-size="10" fill="var(--red)">2022–23 low (${t.tp_2022_23})</text>`;
+  let li=N-1;while(li>0&&tp[li]===null)li--;
+  s+=`<circle cx="${x(li)}" cy="${yL(tp[li])}" r="4" fill="var(--teal)"/><text x="${x(li)}" y="${yL(tp[li])-8}" text-anchor="end" font-size="10" fill="var(--teal)">today (${tp[li]>=0?"+":""}${tp[li]})</text>`;
+  document.getElementById("tpChart").innerHTML=s;
+  document.getElementById("tpNote").innerHTML =
+    "The 10Y−3M slope splits into an expectations component and a term premium. An inversion driven by "
+    + "expectations is recession-predictive; one driven by a <b>compressed term premium</b> (below the 50 bp "
+    + "gate) is not — the 2022–23 false-alarm signature (flagship probability spiked while the premium was "
+    + "compressed, yet no recession followed). Compressed 2020–21 avg ~" + t.tp_compressed_2020_21 + " pp.";
 })();
 
-/* ====================== SCENARIO LAB (Phase 6B) ====================== */
+/* flagship probability trajectory (full history) */
 (function(){
-  const LAB = DATA.lab;
-  let selected = '10y-3m';                       // default model (rule 7)
-
-  /* standard-normal CDF via an erf approximation (no library) */
-  function erf(x){
-    const s=Math.sign(x); x=Math.abs(x);
-    const t=1/(1+0.3275911*x);
-    const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);
-    return s*y;
-  }
-  const normCdf = z => 0.5*(1+erf(z/Math.SQRT2));
-
-  /* ---- model selector buttons ---- */
-  const mhost=document.getElementById('labModels');
-  mhost.innerHTML = Object.entries(LAB.models).map(([k,m])=>
-    `<button class="mbtn${k===selected?' active':''}" data-m="${k}">${k}
-      <small>OOS AUC ${m.oos_auc} · ${m.onsets} onsets</small></button>`).join('');
-  mhost.querySelectorAll('.mbtn').forEach(b=>b.onclick=()=>{
-    selected=b.dataset.m;
-    mhost.querySelectorAll('.mbtn').forEach(x=>x.classList.toggle('active',x.dataset.m===selected));
-    recompute();
-  });
-
-  /* ---- scorecard table + per-criterion ranking ---- */
-  (function(){
-    const M=LAB.models, names=Object.keys(M);
-    const best=(k,hi)=>{const v=names.map(n=>M[n][k]).filter(x=>x!=null);return hi?Math.max(...v):Math.min(...v);};
-    const bAuc=best('oos_auc',true), bFp=best('false_pos',false), bLead=best('lead_mean',true);
-    const rows=names.map(n=>{const m=M[n];
-      const lead=m.lead_mean!=null?`${m.lead_mean} mo (${m.lead_min}–${m.lead_max})`:'n/a';
-      return `<tr class="${n==='10y-3m'?'def':''}">
-        <td>${n}${n==='10y-3m'?' ★':''}</td>
-        <td class="${m.oos_auc===bAuc?'best':''}">${m.oos_auc}</td>
-        <td>${m.onsets}</td>
-        <td class="${m.false_pos===bFp?'best':''}">${m.false_pos}</td>
-        <td>${m.hit_rate}</td>
-        <td class="${m.lead_mean===bLead?'best':''}">${lead}</td></tr>`;}).join('');
-    const ord=(k,hi)=>names.filter(n=>M[n][k]!=null).sort((a,b)=>hi?M[b][k]-M[a][k]:M[a][k]-M[b][k])
-      .map(n=>`${n} (${M[n][k]})`).join(' › ');
-    document.getElementById('scorecard').innerHTML =
-      `<table class="sc"><thead><tr><th>spread</th><th>OOS AUC</th><th>onsets</th>
-       <th>false +</th><th>hit-rate</th><th>lead time</th></tr></thead><tbody>${rows}</tbody></table>
-       <div class="rankline">
-         <b>Rank by accuracy</b> (OOS AUC): ${ord('oos_auc',true)}<br>
-         <b>Rank by fewest false alarms</b>: ${ord('false_pos',false)}<br>
-         <b>Rank by longest lead time</b>: ${ord('lead_mean',true)}<br>
-         ★ 10y‑3m is the default headline (rule 7): it has the <b>fewest false positives</b>, which
-         is the project's stated goal of minimizing false alarms — even though 10y‑fed&nbsp;funds scores
-         highest on raw accuracy. The criteria genuinely trade off, so all three rankings are shown rather
-         than collapsed into one score.
-       </div>`;
-  })();
-
-  /* ---- four yield sliders ---- */
-  const Y=[['fedfunds','Fed funds'],['y3m','3-month'],['y2','2-year'],['y10','10-year']];
-  document.getElementById('yieldSliders').innerHTML = Y.map(([k,lab])=>{
-    const v=LAB.curve_defaults[k];
-    return `<div class="sld"><label>${lab} yield <b id="lbl_${k}">${v.toFixed(2)}%</b></label>
-      <input type="range" id="sl_${k}" min="0" max="18" step="0.01" value="${v}"></div>`;
-  }).join('');
-
-  /* ---- fragility sliders ---- */
-  const F=LAB.fragility;
-  document.getElementById('fragSliders').innerHTML = Object.entries(F).map(([k,f])=>{
-    const step=(f.max-f.min)/200;
-    return `<div class="sld"><label>${f.label} <b id="lbl_${k}">${f.value}</b></label>
-      <input type="range" id="sl_${k}" min="${f.min}" max="${f.max}" step="${step}" value="${f.value}"></div>`;
-  }).join('');
-
-  /* wire every slider to recompute */
-  document.querySelectorAll('#yieldSliders input, #fragSliders input').forEach(i=>i.oninput=recompute);
-
-  const val = id => parseFloat(document.getElementById('sl_'+id).value);
-
-  /* ---- gauge drawer (shared shape with the headline gauge) ---- */
-  function drawGauge(p){
-    const cx=120,cy=130,r=95;
-    const col=p<25?'var(--green)':p<50?'var(--amber)':'var(--red)';
-    const ang=Math.PI*(1-p/100), pol=a=>[cx+r*Math.cos(a),cy-r*Math.sin(a)];
-    const arc=(a0,a1,c,w)=>{const[x0,y0]=pol(a0),[x1,y1]=pol(a1);const lg=(a0-a1)>Math.PI?1:0;
-      return `<path d="M${x0} ${y0} A${r} ${r} 0 ${lg} 1 ${x1} ${y1}" fill="none" stroke="${c}" stroke-width="16" stroke-linecap="round"/>`;};
-    const[nx,ny]=pol(ang);
-    document.getElementById('labGauge').innerHTML =
-      arc(Math.PI,0,'#e7eaf1',16)+arc(Math.PI,ang,col,16)
-      +`<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="3"/>`
-      +`<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/>`;
-    const n=document.getElementById('labGaugeNum'); n.textContent=p.toFixed(1)+'%'; n.style.color=col;
-  }
-
-  /* ---- yield-curve drawing (yield vs maturity) ---- */
-  function drawCurve(yf,y3,y2,y10){
-    const W=520,H=220,m={t:14,r:16,b:30,l:34}, pw=W-m.l-m.r, ph=H-m.t-m.b;
-    const pts=[['o/n',yf],['3m',y3],['2y',y2],['10y',y10]];
-    const ymax=Math.max(6,Math.ceil(Math.max(yf,y3,y2,y10)+1));
-    const x=i=>m.l+(i/(pts.length-1))*pw, y=v=>m.t+(1-v/ymax)*ph;
-    let s='';
-    for(let g=0;g<=ymax;g+=Math.ceil(ymax/6)){
-      s+=`<line x1="${m.l}" y1="${y(g)}" x2="${W-m.r}" y2="${y(g)}" stroke="var(--line)"/>`;
-      s+=`<text x="${m.l-6}" y="${y(g)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${g}%</text>`;
-    }
-    pts.forEach((p,i)=>s+=`<text x="${x(i)}" y="${H-10}" text-anchor="middle" font-size="11" fill="var(--muted)">${p[0]}</text>`);
-    const inverted=y10<y3;
-    const line=pts.map((p,i)=>`${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join(' ');
-    s+=`<polyline points="${line}" fill="none" stroke="${inverted?'var(--red)':'var(--blue)'}" stroke-width="2.5"/>`;
-    pts.forEach((p,i)=>s+=`<circle cx="${x(i)}" cy="${y(p[1])}" r="4" fill="${inverted?'var(--red)':'var(--blue)'}"/>`);
-    document.getElementById('curveSvg').innerHTML=s;
-  }
-
-  /* ---- "most resembles [year]" via standardized nearest match ---- */
-  function resembles(userVec){
-    const st=LAB.match_stats, vars=LAB.match_vars;
-    const z=(v,name)=> (v-st[name].mean)/(st[name].std||1);
-    let best=null;
-    LAB.episodes.forEach(ep=>{
-      let sum=0,n=0,diffs={};
-      vars.forEach(v=>{ if(ep.vec[v]===null||userVec[v]===undefined) return;
-        const d=z(userVec[v],v)-z(ep.vec[v],v); diffs[v]=Math.abs(d); sum+=d*d; n++; });
-      if(n===0) return;
-      const dist=Math.sqrt(sum/n);
-      if(!best||dist<best.dist) best={ep,dist,diffs};
-    });
-    if(!best) return;
-    // the two dimensions where the match is tightest
-    const close=Object.entries(best.diffs).sort((a,b)=>a[1]-b[1]).slice(0,2)
-      .map(([v])=>LAB.match_labels[v]);
-    document.getElementById('resembles').innerHTML =
-      `<b>Your scenario most resembles ${best.ep.label}.</b><br>
-       <span class="note">What happened then: ${best.ep.outcome}. The closest match is driven mainly by
-       ${close.join(' and ')}. (Resemblance uses the whole scenario — the curve plus the fragility inputs —
-       standardized across the 8 reference episodes; it describes character, it is not a probability.)</span>`;
-  }
-
-  /* ---- the live recompute ---- */
-  function recompute(){
-    const yf=val('fedfunds'),y3=val('y3m'),y2=val('y2'),y10=val('y10');
-    Y.forEach(([k])=>document.getElementById('lbl_'+k).textContent=val(k).toFixed(2)+'%');
-    const spreads={'10y-3m':y10-y3,'10y-ff':y10-yf,'10y-2y':y10-y2};
-    // spread readout
-    document.getElementById('spreadbox').innerHTML = Object.entries(spreads).map(([k,v])=>
-      `<span>${k}: <b style="color:${v<0?'var(--red)':'var(--ink)'}">${v>=0?'+':''}${v.toFixed(2)} pp</b></span>`).join('');
-    drawCurve(yf,y3,y2,y10);
-
-    // probability from the SELECTED model's fitted coefficients
-    const m=LAB.models[selected], sp=spreads[selected];
-    const p=Math.max(0,Math.min(100, normCdf(m.const+m.slope*sp)*100));
-    drawGauge(p);
-
-    // fragility values
-    const fv={}; Object.keys(F).forEach(k=>{fv[k]=val(k);
-      document.getElementById('lbl_'+k).textContent=val(k).toFixed(k==='debt_income'||k==='sloos'?0:1);});
-    // character verdict (uses the selected curve's inversion + debt/house/credit thresholds)
-    const inverted=sp<0;
-    const debtHigh=fv.debt_income>F.debt_income.warn_above;
-    const houseFall=fv.real_house<F.real_house.warn_below;
-    const creditSpike=fv.credit>F.credit.warn_above;
-    const fragility=debtHigh||(houseFall&&creditSpike);
-    const b=document.getElementById('labBanner');
-    if(!inverted){ b.className='banner b-clear';
-      b.innerHTML='ALL CLEAR<small>The selected curve is not inverted, so the spread is not warning.</small>';
-    } else if(fragility){ b.className='banner b-warn';
-      b.innerHTML='GENUINE WARNING<small>Inverted curve + credit-cycle fragility present — 2008-type risk.</small>';
-    } else { b.className='banner b-nocc';
-      b.innerHTML='INVERTED — likely a false alarm<small>If this inversion is driven by a compressed term premium (as in 2022–24) it overstates recession odds; a 2008-style credit collapse also looks unlikely here.</small>';
-    }
-
-    // most-resembles match on the full standardized vector
-    resembles({spread_10y_3m:y10-y3, real_hpi_yoy:fv.real_house, credit_spread:fv.credit,
-               hh_debt_income:fv.debt_income, hh_debt_growth:fv.debt_growth, sloos:fv.sloos,
-               foreign_born_growth:fv.migration});
-  }
-
-  recompute();   // initial paint
+  const W=1000,H=340,m={t:14,r:16,b:26,l:34},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const d=DATA.trajectory.dates,N=d.length,pr=DATA.trajectory.prob;
+  const idx={}; d.forEach((s,i)=>idx[s]=i);
+  const x=i=>m.l+(N<2?0:(i/(N-1))*pw), y=v=>m.t+(1-v/100)*ph;
+  let s="";
+  DATA.trajectory.recessions.forEach(rc=>{let a=idx[rc.start],b=idx[rc.end];if(a===undefined&&b===undefined)return;
+    if(a===undefined)a=0;if(b===undefined)b=N-1;s+=`<rect x="${x(a)}" y="${m.t}" width="${Math.max(1,x(b)-x(a))}" height="${ph}" fill="var(--band)"/>`;});
+  [0,25,50,75,100].forEach(v=>{s+=`<line x1="${m.l}" y1="${y(v)}" x2="${W-m.r}" y2="${y(v)}" stroke="var(--line)"/>`;
+    s+=`<text x="${m.l-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v}%</text>`;});
+  let ld=null; d.forEach((str,i)=>{const yr=+str.slice(0,4);if(yr%10===0&&str.slice(5)==="01"&&yr!==ld){ld=yr;
+    s+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="10" fill="var(--muted)">${yr}</text>`;}});
+  let str="",pen=false; pr.forEach((v,i)=>{if(v===null){pen=false;return;}str+=(pen?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)+" ";pen=true;});
+  s+=`<path d="${str}" fill="none" stroke="var(--red)" stroke-width="1.4"/>`;
+  document.getElementById("traj").innerHTML=s;
 })();
 
-/* ====================== CONDITIONS MATRIX (Phase 6D) ====================== */
-(function(){
-  const MX = DATA.matrix;
-  const cols = MX.cols;
-  const nLead = cols.filter(c=>c.block==='leading').length;
-  const nCoin = cols.filter(c=>c.block==='coincident').length;
-  const firstCoin = cols.findIndex(c=>c.block==='coincident');
-
-  // two header rows: block labels, then column labels
-  let head = `<thead>
-    <tr><th></th>
-      <th class="blk lead" colspan="${nLead}">Leading — present before a recession</th>
-      <th class="blk coin" colspan="${nCoin}">Coincident — widen during the downturn</th>
-      <th></th></tr>
-    <tr><th>Episode</th>`;
-  cols.forEach((c,i)=>{
-    head += `<th class="col${i===firstCoin?' divider':''}">${c.label}<small>${c.sub}</small></th>`;
-  });
-  head += `<th class="col">Outcome</th></tr></thead>`;
-
-  let body = '<tbody>';
-  MX.rows.forEach(r=>{
-    body += `<tr class="${r.today?'today':''}">`;
-    body += `<td>${r.label}</td>`;
-    cols.forEach((c,i)=>{
-      const cell=r.cells[c.key];
-      const cls = cell.na?'na':(cell.danger?'dng':'ben');
-      body += `<td class="${cls}${i===firstCoin?' divider':''}">${cell.value}</td>`;
-    });
-    const ocls = r.today?'out-today':(r.outcome_rec?'out-rec':'out-no');
-    body += `<td class="${ocls}">${r.outcome}</td></tr>`;
-  });
-  body += '</tbody>';
-  document.getElementById('matrix').innerHTML = head + body;
-
-  document.getElementById('matrixnote').innerHTML =
-    'Red = in the danger zone; green = benign; “—” = the data series doesn’t reach that far back. '
-    + '<b>The coincident confirmers (credit, banks) widen during the downturn</b>, so they can read calm '
-    + 'at the inversion — 2007 is the example (credit 1.71 and banks both green, yet the recession came). '
-    + 'This matrix is <b>supporting real-economy context</b>, not the headline: it describes what '
-    + 'conditions were present and what history did. Note the 1950s: at monthly resolution the curve did '
-    + '<b>not</b> invert before the 1957 and 1960 recessions (it only flattened to ~+0.2, shown green '
-    + 'truthfully) — the signal was shallow then and became reliable from the late 1960s (1970, 1973 clearly '
-    + 'inverted). Takeaway: there is no single recipe — the full credit-cycle stack lined up only in 2007; '
-    + 'other recessions had other triggers (Fed tightening 1957/1960/1970, oil shock 1973, policy 1980, '
-    + 'tech-bust 2000, COVID 2020). The 2007-vs-2023 leverage gap (133% vs 95%) is the real-economy backdrop '
-    + 'to the 2022–24 non-recession; the <b>headline</b> explanation, though, is <b>term-premium compression</b> '
-    + '— a deep inversion driven by a compressed term premium rather than genuine recession expectations, '
-    + 'the false-alarm signature (see the term-premium trust check).';
-})();
+/* caveats + source */
+document.getElementById("caveats").innerHTML =
+  "<b>Thresholds are in-sample.</b> The 30% / 15% / 50 bp triggers are episode-optimal on the 1953+ history "
+  + "(8 recessions, 2 false alarms) — a clean pattern, not an out-of-sample-validated rule; the probabilities "
+  + "themselves are validated. <b>Term-premium compression:</b> the deep 2022–23 inversion drove the model to "
+  + "~77% with no recession — the failure mode signal 3 screens for; a deep inversion can be a <b>false alarm</b>. "
+  + "<b>2020 was exogenous</b> (the rule's one miss). <b>Monthly vs daily:</b> coefficients use monthly-average "
+  + "spreads; the live reading plugs in the latest daily spread. <b>2Y history is short</b> (from 1976). "
+  + "House prices were tested and excluded (they mute the non-housing recessions).";
+document.getElementById("src").innerHTML =
+  "<b>Data source:</b> " + DATA.data_source + ". Turning on Moody's DataBuffet (two keys) upgrades signal 2's "
+  + "Aa leg automatically — no code change. Auto-refreshes weekly.";
 </script>
 </body>
 </html>

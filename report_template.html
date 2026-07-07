@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<!--
+  US Recession Tracker — single self-contained page mirroring the report. Data embedded below,
+  charts drawn with inline SVG, no external libraries. Regenerate with build_two_clock_data.py.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>US Recession Tracker — Three-Signal Rule</title>
+<style>
+  :root{
+    --ink:#16213e; --muted:#5b6478; --line:#e3e6ee; --bg:#ffffff; --panel:#f7f8fb;
+    --blue:#2563eb; --teal:#0d9488; --band:#dfe3ec;
+    --green:#16a34a; --amber:#e08a00; --red:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1000px;margin:0 auto;padding:26px 22px 64px}
+  h1{font-size:24px;margin:0 0 2px}
+  .sub{color:var(--muted);margin:0 0 6px;font-size:13px}
+  .headline{border-radius:14px;padding:16px 18px;margin:14px 0 8px;border:1px solid;font-weight:700;font-size:20px}
+  .headline small{display:block;font-weight:500;font-size:13.5px;margin-top:4px;color:var(--muted)}
+  .h-clear{background:#eafaf0;border-color:#bfe9cf;color:#10632f}
+  .h-fire{background:#fdecec;border-color:#f6bcbc;color:#a01818}
+  .plain{font-size:14px;margin:4px 0 0}
+  h2{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px}
+  .cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:760px){.cards{grid-template-columns:1fr}}
+  .sig{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px;text-align:center}
+  .sig .no{color:var(--muted);font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .sig .nm{font-weight:600;font-size:15px;margin-top:2px}
+  .sig .subq{color:var(--muted);font-size:12px;margin-top:1px;min-height:32px}
+  .sig .big{font-size:36px;font-weight:700;margin:-2px 0}
+  .sig .model{color:var(--muted);font-size:11px;margin-top:2px}
+  .sig .gate{font-size:11.5px;margin-top:6px}
+  .met-yes{color:var(--red);font-weight:700}
+  .met-no{color:var(--green);font-weight:700}
+  .badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid;margin-top:6px}
+  .b-green{background:#eafaf0;border-color:#bfe9cf;color:#10632f}
+  .b-red{background:#fdecec;border-color:#f6bcbc;color:#a01818}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+  th,td{border-bottom:1px solid var(--line);padding:7px 9px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:600;font-size:12px}
+  td.inv-yes{color:var(--red);font-weight:600}
+  .note{color:var(--muted);font-size:12.5px;margin-top:10px;line-height:1.55}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:8px}
+  .legend i{display:inline-block;width:20px;height:0;vertical-align:middle;margin-right:5px}
+  svg{display:block;width:100%;height:auto}
+  text{fill:var(--ink)}
+  .src{font-size:12px;color:var(--muted);margin-top:22px;border-top:1px solid var(--line);padding-top:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>US Recession Tracker</h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="headline" id="headline"></div>
+  <p class="plain" id="plain"></p>
+
+  <h2>The three signals</h2>
+  <div class="cards" id="cards"></div>
+  <p class="note" id="ruleNote"></p>
+
+  <h2>Today's curve — the model inputs</h2>
+  <table id="inputs"></table>
+  <p class="note">The 3-month bill (discount-basis) is converted to a coupon-equivalent (bond-equivalent)
+     yield before differencing, matching the 10Y constant-maturity leg and the NY Fed convention.</p>
+
+  <h2>Recession probability by spread and horizon</h2>
+  <table id="probtable"></table>
+  <p class="note">Full-sample probit fits evaluated at the live daily spread. The flagship reading is the
+     10Y−3M column at 12 months; discrimination peaks at the 12–18-month lead.</p>
+
+  <h2>Term-premium trust check — why signal 3 matters</h2>
+  <svg id="tpChart" viewBox="0 0 1000 360" aria-label="term premium history"></svg>
+  <div class="legend">
+    <span><i style="border-top:3px solid var(--teal)"></i>term premium (pp, left)</span>
+    <span><i style="border-top:3px solid var(--red);opacity:.5"></i>flagship probability (%, right)</span>
+    <span><i style="border-top:12px solid var(--band);height:0"></i>NBER recession</span>
+    <span><i style="border-top:10px solid #fde2e2;height:0"></i>compressed (below 50 bp gate)</span>
+  </div>
+  <p class="note" id="tpNote"></p>
+
+  <h2>Flagship recession probability over time</h2>
+  <svg id="traj" viewBox="0 0 1000 340" aria-label="flagship probability"></svg>
+  <p class="note">The 12-month probability from the 10Y−3M term spread (full-sample probit), NBER recessions
+     shaded. Out-of-sample AUC ≈ 0.80 over 8 modern onsets — the honest, validated track record.</p>
+
+  <h2>How to read this — caveats</h2>
+  <p class="note" id="caveats"></p>
+  <p class="src" id="src"></p>
+</div>
+
+<script>
+const DATA = __REPORT_DATA__;
+const lvlColor = p => p < 25 ? "var(--green)" : (p < 50 ? "var(--amber)" : "var(--red)");
+
+/* header + headline */
+document.getElementById("sub").textContent =
+  "Generated " + DATA.generated + ". Daily curve as of " + (DATA.as_of_daily||"n/a")
+  + "; monthly panel through " + DATA.monthly_through + ".";
+(function(){
+  const r=DATA.rule, h=document.getElementById("headline");
+  h.className="headline "+(r.firing?"h-fire":"h-clear");
+  h.innerHTML="Recession signal: "+(r.firing?"FIRING":"NOT firing")
+    +"<small>"+r.count_met+" of 3 conditions met — the rule calls a recession only when <b>all three</b> confirm "
+    +"(12-month ≥ "+r.thresholds.flag+"%, 3-month ≥ "+r.thresholds.aug+"%, term premium ≥ "+r.thresholds.tp_bp+" bp).</small>";
+  document.getElementById("plain").innerHTML="<b>In plain English:</b> "+DATA.plain_english;
+})();
+
+/* gauge */
+function gauge(p){
+  const cx=120,cy=120,r=86,col=lvlColor(p);
+  const ang=Math.PI*(1-p/100),pol=a=>[cx+r*Math.cos(a),cy-r*Math.sin(a)];
+  const arc=(a0,a1,c)=>{const[x0,y0]=pol(a0),[x1,y1]=pol(a1);const lg=(a0-a1)>Math.PI?1:0;
+    return `<path d="M${x0} ${y0} A${r} ${r} 0 ${lg} 1 ${x1} ${y1}" fill="none" stroke="${c}" stroke-width="14" stroke-linecap="round"/>`;};
+  const[nx,ny]=pol(ang);
+  return `<svg viewBox="0 0 240 132">`+arc(Math.PI,0,"#e7eaf1")+arc(Math.PI,ang,col)
+    +`<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="3"/>`
+    +`<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/></svg>`;
+}
+
+/* three signal cards */
+(function(){
+  document.getElementById("cards").innerHTML = DATA.signals.map(s=>{
+    const met = s.met?'<span class="met-yes">✓ met</span>':'<span class="met-no">— not met</span>';
+    if(s.gauge){
+      return `<div class="sig"><div class="no">Signal ${s.num}</div><div class="nm">${s.name}</div>
+        <div class="subq">${s.sub}</div>${gauge(s.value)}
+        <div class="big" style="color:${lvlColor(s.value)}">${s.value}%</div>
+        <div class="model">${s.model}</div><div class="gate">${s.fires_text} · ${met}</div>
+        ${s.source_note?`<div class="model" style="margin-top:4px">${s.source_note}</div>`:""}</div>`;
+    }
+    const tp=DATA.term_premium, badge=tp.tp_class==="compressed"?"b-red":"b-green";
+    return `<div class="sig"><div class="no">Signal ${s.num}</div><div class="nm">${s.name}</div>
+      <div class="subq">${s.sub}</div>
+      <div class="big" style="color:${tp.tp_class==='compressed'?'var(--red)':'var(--teal)'}">${tp.tp_bp>=0?'+':''}${tp.tp_bp} bp</div>
+      <div class="model">${s.model}</div>
+      <span class="badge ${badge}">${s.tp_class} · ~${s.percentile}th pctile</span>
+      <div class="gate">${s.fires_text} · ${met}</div>
+      <div class="model" style="margin-top:4px">${s.acm_note}</div></div>`;
+  }).join("");
+  document.getElementById("ruleNote").innerHTML =
+    "In-sample the rule catches 7 of 8 modern recessions with zero false alarms (the miss is COVID-2020, "
+    + "which no yield-curve model predicted) — but its thresholds are tuned on that same history, so read it "
+    + "as a clean in-sample pattern, <b>not a validated forecast</b>. The probabilities themselves are validated.";
+})();
+
+/* inputs table */
+(function(){
+  let h="<thead><tr><th>spread</th><th>daily (pp)</th><th>latest monthly (pp)</th><th>inverted?</th></tr></thead><tbody>";
+  DATA.inputs.spreads.forEach(s=>{
+    h+=`<tr><td>${s.label}</td><td>${s.daily>=0?'+':''}${s.daily}</td><td>${s.monthly>=0?'+':''}${s.monthly}</td>`
+      +`<td class="${s.inverted?'inv-yes':''}">${s.inverted?'yes':'no'}</td></tr>`;
+  });
+  document.getElementById("inputs").innerHTML=h+"</tbody>";
+})();
+
+/* probability x horizon table */
+(function(){
+  const p=DATA.prob_table;
+  let h="<thead><tr><th>horizon (months)</th>"+p.spreads.map(s=>`<th>${s.label}</th>`).join("")+"</tr></thead><tbody>";
+  p.horizons.forEach((hz,i)=>{ h+=`<tr><td>${hz}</td>`+p.spreads.map(s=>`<td>${s.vals[i]}%</td>`).join("")+"</tr>"; });
+  document.getElementById("probtable").innerHTML=h+"</tbody>";
+})();
+
+/* term-premium history chart */
+(function(){
+  const W=1000,H=360,m={t:14,r:42,b:26,l:38},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const d=DATA.tp_series.dates,N=d.length,tp=DATA.tp_series.term_premium,fp=DATA.tp_series.flagship_prob;
+  const idx={}; d.forEach((s,i)=>idx[s]=i);
+  const x=i=>m.l+(N<2?0:(i/(N-1))*pw);
+  const tv=tp.filter(v=>v!==null), tmin=Math.min(-1,Math.floor(Math.min(...tv))), tmax=Math.max(3,Math.ceil(Math.max(...tv)));
+  const yL=v=>m.t+(1-(v-tmin)/(tmax-tmin))*ph, yR=v=>m.t+(1-v/100)*ph, gate=DATA.term_premium.gate_pp;
+  let s="";
+  DATA.tp_recessions.forEach(rc=>{let a=idx[rc.start],b=idx[rc.end];if(a===undefined&&b===undefined)return;
+    if(a===undefined)a=0;if(b===undefined)b=N-1;s+=`<rect x="${x(a)}" y="${m.t}" width="${Math.max(1,x(b)-x(a))}" height="${ph}" fill="var(--band)"/>`;});
+  let run=null; tp.forEach((v,i)=>{const lo=v!==null&&v<gate; if(lo&&run===null)run=i;
+    if((!lo||i===N-1)&&run!==null){const e=lo?i:i-1;s+=`<rect x="${x(run)}" y="${m.t}" width="${Math.max(1,x(e)-x(run))}" height="${ph}" fill="#fde2e2" opacity="0.55"/>`;run=null;}});
+  s+=`<line x1="${m.l}" y1="${yL(gate)}" x2="${W-m.r}" y2="${yL(gate)}" stroke="var(--amber)" stroke-dasharray="5 3"/>`;
+  s+=`<text x="${m.l+4}" y="${yL(gate)-4}" font-size="10" fill="var(--amber)">50 bp veto gate</text>`;
+  s+=`<line x1="${m.l}" y1="${yL(0)}" x2="${W-m.r}" y2="${yL(0)}" stroke="#c9cfdb" stroke-dasharray="2 3"/>`;
+  for(let v=tmin;v<=tmax;v++) s+=`<text x="${m.l-6}" y="${yL(v)+4}" text-anchor="end" font-size="10" fill="var(--teal)">${v>0?"+":""}${v}</text>`;
+  let ld=null; d.forEach((str,i)=>{const yr=+str.slice(0,4); if(yr%10===0&&str.slice(5)==="01"&&yr!==ld){ld=yr;
+    s+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="10" fill="var(--muted)">${yr}</text>`;}});
+  const path=(arr,y)=>{let str="",pen=false;arr.forEach((v,i)=>{if(v===null){pen=false;return;}str+=(pen?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)+" ";pen=true;});return str;};
+  s+=`<path d="${path(fp,yR)}" fill="none" stroke="var(--red)" stroke-width="1.5" opacity="0.42"/>`;
+  s+=`<path d="${path(tp,yL)}" fill="none" stroke="var(--teal)" stroke-width="2.2"/>`;
+  const t=DATA.term_premium,li0=idx[t.tp_2022_23_date];
+  if(li0!==undefined) s+=`<circle cx="${x(li0)}" cy="${yL(t.tp_2022_23)}" r="4" fill="var(--red)"/><text x="${x(li0)}" y="${yL(t.tp_2022_23)-8}" text-anchor="middle" font-size="10" fill="var(--red)">2022–23 low (${t.tp_2022_23})</text>`;
+  let li=N-1;while(li>0&&tp[li]===null)li--;
+  s+=`<circle cx="${x(li)}" cy="${yL(tp[li])}" r="4" fill="var(--teal)"/><text x="${x(li)}" y="${yL(tp[li])-8}" text-anchor="end" font-size="10" fill="var(--teal)">today (${tp[li]>=0?"+":""}${tp[li]})</text>`;
+  document.getElementById("tpChart").innerHTML=s;
+  document.getElementById("tpNote").innerHTML =
+    "The 10Y−3M slope splits into an expectations component and a term premium. An inversion driven by "
+    + "expectations is recession-predictive; one driven by a <b>compressed term premium</b> (below the 50 bp "
+    + "gate) is not — the 2022–23 false-alarm signature (flagship probability spiked while the premium was "
+    + "compressed, yet no recession followed). Compressed 2020–21 avg ~" + t.tp_compressed_2020_21 + " pp.";
+})();
+
+/* flagship probability trajectory (full history) */
+(function(){
+  const W=1000,H=340,m={t:14,r:16,b:26,l:34},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const d=DATA.trajectory.dates,N=d.length,pr=DATA.trajectory.prob;
+  const idx={}; d.forEach((s,i)=>idx[s]=i);
+  const x=i=>m.l+(N<2?0:(i/(N-1))*pw), y=v=>m.t+(1-v/100)*ph;
+  let s="";
+  DATA.trajectory.recessions.forEach(rc=>{let a=idx[rc.start],b=idx[rc.end];if(a===undefined&&b===undefined)return;
+    if(a===undefined)a=0;if(b===undefined)b=N-1;s+=`<rect x="${x(a)}" y="${m.t}" width="${Math.max(1,x(b)-x(a))}" height="${ph}" fill="var(--band)"/>`;});
+  [0,25,50,75,100].forEach(v=>{s+=`<line x1="${m.l}" y1="${y(v)}" x2="${W-m.r}" y2="${y(v)}" stroke="var(--line)"/>`;
+    s+=`<text x="${m.l-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v}%</text>`;});
+  let ld=null; d.forEach((str,i)=>{const yr=+str.slice(0,4);if(yr%10===0&&str.slice(5)==="01"&&yr!==ld){ld=yr;
+    s+=`<text x="${x(i)}" y="${H-6}" text-anchor="middle" font-size="10" fill="var(--muted)">${yr}</text>`;}});
+  let str="",pen=false; pr.forEach((v,i)=>{if(v===null){pen=false;return;}str+=(pen?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)+" ";pen=true;});
+  s+=`<path d="${str}" fill="none" stroke="var(--red)" stroke-width="1.4"/>`;
+  document.getElementById("traj").innerHTML=s;
+})();
+
+/* caveats + source */
+document.getElementById("caveats").innerHTML =
+  "<b>Thresholds are in-sample.</b> The 30% / 15% / 50 bp triggers are episode-optimal on the 1953+ history "
+  + "(8 recessions, 2 false alarms) — a clean pattern, not an out-of-sample-validated rule; the probabilities "
+  + "themselves are validated. <b>Term-premium compression:</b> the deep 2022–23 inversion drove the model to "
+  + "~77% with no recession — the failure mode signal 3 screens for; a deep inversion can be a <b>false alarm</b>. "
+  + "<b>2020 was exogenous</b> (the rule's one miss). <b>Monthly vs daily:</b> coefficients use monthly-average "
+  + "spreads; the live reading plugs in the latest daily spread. <b>2Y history is short</b> (from 1976). "
+  + "House prices were tested and excluded (they mute the non-housing recessions).";
+document.getElementById("src").innerHTML =
+  "<b>Data source:</b> " + DATA.data_source + ". Turning on Moody's DataBuffet (two keys) upgrades signal 2's "
+  + "Aa leg automatically — no code change. Auto-refreshes weekly.";
+</script>
+</body>
+</html>
