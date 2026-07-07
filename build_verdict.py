@@ -52,11 +52,13 @@ T_DEBT_HIGH    = THRESHOLDS["leverage"]["value"]   # > 110
 T_HOUSE_FALL   = THRESHOLDS["house"]["value"]      # < -2  (was 0; see config.py)
 T_CREDIT_SPIKE = THRESHOLDS["credit"]["value"]     # > 2.5
 
-# full-text readings (never the words "false alarm")
+# full-text readings. Framing (updated to the report): the LEADING explanation for a deep
+# inversion that does not become a recession is TERM-PREMIUM COMPRESSION - a possible false
+# alarm. The credit-cycle fragility read is supporting real-economy context, not the headline.
 V_WARN  = "GENUINE WARNING - credit-cycle (2008-type) fragility present"
-V_NOCC  = "INVERTED, NO CREDIT-CYCLE FRAGILITY - 2008-style collapse unlikely; other-cause recession still possible"
+V_NOCC  = "INVERTED, likely TERM-PREMIUM-DRIVEN - a possible false alarm; a 2008-style credit collapse looks unlikely"
 V_CLEAR = "ALL CLEAR"
-SHORT   = {V_WARN: "WARN (credit-cycle)", V_NOCC: "INVERTED (no cc-fragility)", V_CLEAR: "all clear"}
+SHORT   = {V_WARN: "WARN (credit-cycle)", V_NOCC: "INVERTED (likely false alarm)", V_CLEAR: "all clear"}
 
 
 def verdict_row(r):

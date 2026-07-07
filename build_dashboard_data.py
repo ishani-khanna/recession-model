@@ -122,8 +122,8 @@ lights = [
 full = str(cv["verdict"])
 if "GENUINE WARNING" in full:
     cls, short = "warn", "GENUINE WARNING"
-elif "NO CREDIT-CYCLE FRAGILITY" in full:
-    cls, short = "nocc", "INVERTED — NO CREDIT-CYCLE FRAGILITY"
+elif "INVERTED" in full:
+    cls, short = "nocc", "INVERTED — likely a false alarm"
 else:
     cls, short = "clear", "ALL CLEAR"
     full = "The yield curve is not inverted, so the spread is not signalling a recession warning."

@@ -118,6 +118,12 @@
     <div class="card">
       <h2>Character of the risk</h2>
       <div id="banner" class="banner"></div>
+      <p class="note" style="margin-top:10px">
+        <b>Term-premium check.</b> When the term premium is unusually low (even negative), a given
+        inversion <i>overstates</i> recession odds — the leading explanation for the 2022–24 false
+        alarm. Today it is near normal, so the curve reads as a clean signal
+        (<a href="two_clock.html" style="color:#2563eb;text-decoration:none">see the trust check</a>).
+      </p>
       <h2>Fragility signals (values vs judgment-call thresholds)</h2>
       <div class="lights" id="lights"></div>
     </div>
@@ -190,14 +196,19 @@
   </div>
 
   <p class="note">
-    <b>How to read this.</b> The big number is the probability engine: a probit on the 10-year
-    minus 3-month Treasury spread alone (the Estrella-Mishkin / NY Fed standard). The fragility
-    signals do <b>not</b> change that probability — they grade the <i>character</i> of the risk
-    (is a 2008-style credit-cycle collapse brewing?). An inverted curve always warns through the
-    probability; the model never declares a "false alarm." Thresholds shown are documented
-    judgment calls, not fitted parameters. The two lines on the chart are the point: the rosy
-    <i>fitted</i> line has seen all history; the prominent <i>real-time</i> line shows what the
-    model would actually have said month by month — its AUC is the honest headline.
+    <b>How to read this.</b> The big number is the probability engine — a probit on the 10-year
+    minus 3-month Treasury spread alone (the Estrella-Mishkin / NY Fed standard). It gives a
+    <b>probability, not a certainty</b>, and a deep inversion <b>can</b> be a <b>false alarm</b>.
+    The leading explanation for the 2022–24 episode is <b>term-premium compression</b>: when the
+    term premium is unusually low (even negative), a given inversion <i>overstates</i> recession
+    odds relative to the history the model was trained on — so the raw curve signal should be read
+    conditioned on the term premium (see the
+    <a href="two_clock.html" style="color:#2563eb;text-decoration:none">term-premium trust check</a>).
+    The fragility signals and the conditions matrix below are <b>supporting real-economy context</b>
+    — the 2007-vs-2023 leverage contrast — not the headline. Thresholds shown are documented judgment
+    calls, not fitted parameters. The two lines on the chart are the point: the rosy <i>fitted</i>
+    line has seen all history; the prominent <i>real-time</i> line shows what the model would actually
+    have said month by month — its AUC is the honest headline.
   </p>
 </div>
 
@@ -472,7 +483,7 @@ document.getElementById('asof').textContent =
     } else if(fragility){ b.className='banner b-warn';
       b.innerHTML='GENUINE WARNING<small>Inverted curve + credit-cycle fragility present — 2008-type risk.</small>';
     } else { b.className='banner b-nocc';
-      b.innerHTML='INVERTED — NO CREDIT-CYCLE FRAGILITY<small>A 2008-style collapse looks unlikely; a recession from other causes is still possible.</small>';
+      b.innerHTML='INVERTED — likely a false alarm<small>If this inversion is driven by a compressed term premium (as in 2022–24) it overstates recession odds; a 2008-style credit collapse also looks unlikely here.</small>';
     }
 
     // most-resembles match on the full standardized vector
@@ -523,15 +534,16 @@ document.getElementById('asof').textContent =
     'Red = in the danger zone; green = benign; “—” = the data series doesn’t reach that far back. '
     + '<b>The coincident confirmers (credit, banks) widen during the downturn</b>, so they can read calm '
     + 'at the inversion — 2007 is the example (credit 1.71 and banks both green, yet the recession came). '
-    + 'This matrix <b>describes</b> what conditions were present and what history did; it does not predict, '
-    + 'and it never labels an episode a “false alarm.” Note the 1950s: at monthly resolution the curve did '
+    + 'This matrix is <b>supporting real-economy context</b>, not the headline: it describes what '
+    + 'conditions were present and what history did. Note the 1950s: at monthly resolution the curve did '
     + '<b>not</b> invert before the 1957 and 1960 recessions (it only flattened to ~+0.2, shown green '
     + 'truthfully) — the signal was shallow then and became reliable from the late 1960s (1970, 1973 clearly '
     + 'inverted). Takeaway: there is no single recipe — the full credit-cycle stack lined up only in 2007; '
     + 'other recessions had other triggers (Fed tightening 1957/1960/1970, oil shock 1973, policy 1980, '
-    + 'tech-bust 2000, COVID 2020). The curve is the one ingredient present ahead of <b>most</b> of them '
-    + '(it missed 1957/1960), and the 2007-vs-2023 leverage gap (133% vs 95%) is the cleanest evidence for '
-    + 'the low-leverage explanation of 2022–24.';
+    + 'tech-bust 2000, COVID 2020). The 2007-vs-2023 leverage gap (133% vs 95%) is the real-economy backdrop '
+    + 'to the 2022–24 non-recession; the <b>headline</b> explanation, though, is <b>term-premium compression</b> '
+    + '— a deep inversion driven by a compressed term premium rather than genuine recession expectations, '
+    + 'the false-alarm signature (see the term-premium trust check).';
 })();
 </script>
 </body>
