@@ -28,8 +28,9 @@ from .models import probit, validation
 # Lives as standalone scripts at the repo root; we regenerate output/index.html after
 # the report so a single command refreshes BOTH the report and the interactive dashboard.
 _DASHBOARD_STEPS = [
-    # single report-matching dashboard (three-signal rule + inputs + term premium + trajectory)
-    "build_two_clock_data.py",   # -> docs/index.html
+    "build_two_clock_data.py",     # landing page: three-signal rule  -> docs/index.html
+    "build_dataset.py", "build_features.py", "build_verdict.py",
+    "build_dashboard_data.py",     # interactive explore page (gauge/lab/matrix) -> docs/explore.html
 ]
 
 

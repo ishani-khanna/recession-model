@@ -50,7 +50,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/index.html docs/.nojekyll
+          git add docs/index.html docs/explore.html docs/.nojekyll
           if git diff --staged --quiet; then
             echo "dashboard unchanged; nothing to commit"
           else
