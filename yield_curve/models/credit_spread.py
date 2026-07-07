@@ -32,12 +32,30 @@ def _to_month_start(s: pd.Series) -> pd.Series:
     return s[~s.index.duplicated(keep="last")].sort_index()
 
 
+def _load_aa_leg() -> pd.Series:
+    """The Aa leg of the credit-quality spread.
+
+    WIRED FOR DATABUFFET, FLIP-ON-LATER (config-only): when the Moody's DataBuffet
+    credentials are present, use Moody's Aa yield (IRAACM.IUSA); otherwise fall back to
+    FRED Aaa (AAA) as the FRED-only substitute. Adding the two keys is the only change
+    needed to switch signal 2 to the true Baa-Aa - no code edits.
+    """
+    try:
+        from ..data import config as _cfg
+        _cfg.databuffet_keys()                     # raises if the two keys are absent
+        from ..data.databuffet_client import DataBuffetClient
+        s = DataBuffetClient().get_series("IRAACM.IUSA")
+        return _to_month_start(pd.to_numeric(s, errors="coerce").dropna())
+    except Exception:
+        return _to_month_start(FredClient().get_series("AAA").dropna())
+
+
 def load_baa_aa() -> pd.Series:
-    """Monthly credit-quality spread = Moody's Baa - Aaa (pp), from FRED (BAA, AAA)."""
-    c = FredClient()
-    baa = _to_month_start(c.get_series("BAA").dropna())
-    aaa = _to_month_start(c.get_series("AAA").dropna())
-    spread = (baa - aaa).dropna()
+    """Monthly credit-quality spread = Moody's Baa - Aa (pp). Baa from FRED (BAA); the Aa leg
+    is Moody's Aa via DataBuffet when keys are set, else FRED Aaa as the FRED-only substitute."""
+    baa = _to_month_start(FredClient().get_series("BAA").dropna())
+    aa = _load_aa_leg()
+    spread = (baa - aa).dropna()
     spread.name = "baa_aa"
     return spread
 
