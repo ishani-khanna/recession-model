@@ -29,6 +29,13 @@ warnings.filterwarnings("ignore")
 FLAG_FIRE, AUG_FIRE, TP_GATE_BP = 30, 15, 50
 
 
+def _ord(n):
+    """Integer -> ordinal string (1st, 2nd, 3rd, 4th, 11th, 21st, 31st, ...)."""
+    n = int(round(n))
+    suf = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suf}"
+
+
 def _databuffet_on():
     try:
         config.databuffet_keys(); return True
@@ -112,7 +119,7 @@ flag_tp = flag_full.reindex(tp_idx)
 plain = (f"the curve is {'positively sloped' if term_current >= 0 else 'inverted'} "
          f"(10Y−3M {term_current:+.2f} pp); credit is {'calm' if clocks['credit'] < 0.7 else 'elevated'} "
          f"(Baa−Aa {clocks['credit']:+.2f} pp); the term premium is "
-         f"{'not compressed' if s3_met else 'compressed'} ({tp_bp:+d} bp, ~{tp_pct}th percentile since 1961).")
+         f"{'not compressed' if s3_met else 'compressed'} ({tp_bp:+d} bp, ~{_ord(tp_pct)} percentile since 1961).")
 
 data = {
     "generated": dt.date.today().isoformat(),
@@ -133,8 +140,8 @@ data = {
         {"key": "tp", "num": 3, "name": "Trust check", "model": "ACM 10Y term premium",
          "sub": "is the curve's signal trustworthy, or distorted by a compressed premium?",
          "value_bp": tp_bp, "fires_text": "clear ≥ 50 bp · vetoes if < 50 bp", "met": s3_met,
-         "gauge": False, "tp_class": tp_cls, "percentile": tp_pct,
-         "crosscheck": f"cross-check — Kim–Wright: {round(kw['tp_current']*100):+d} bp (~{kw['tp_percentile']}th pctile), agrees"},
+         "gauge": False, "tp_class": tp_cls, "percentile": tp_pct, "percentile_ord": _ord(tp_pct),
+         "crosscheck": f"cross-check — Kim–Wright: {round(kw['tp_current']*100):+d} bp (~{_ord(kw['tp_percentile'])} pctile), agrees"},
     ],
     "inputs": {"primary_daily": round(term_current, 2),
                "primary_monthly": spreads_table[0]["monthly"], "spreads": spreads_table},

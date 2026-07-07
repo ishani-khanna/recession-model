@@ -9,17 +9,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>US Recession Risk — Yield-Curve Model</title>
+<title>Explore — US Recession Tracker</title>
+<meta name="description" content="Interactive yield-curve recession model: reshape the curve, move the fragility inputs, and compare against every recession since 1953. Companion to the three-signal Overview.">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzFiMjQzMicvPjxwYXRoIGQ9J001IDIyIEwxMyAxNCBMMTkgMTggTDI3IDgnIGZpbGw9J25vbmUnIHN0cm9rZT0nIzNhYTBhYScgc3Ryb2tlLXdpZHRoPScyLjYnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCcvPjxjaXJjbGUgY3g9JzI3JyBjeT0nOCcgcj0nMi42JyBmaWxsPScjM2FhMGFhJy8+PC9zdmc+">
 <style>
   :root{
-    --ink:#16213e; --muted:#5b6478; --line:#e3e6ee; --bg:#ffffff; --panel:#f7f8fb;
-    --blue:#2563eb; --grayline:#aab2c5; --band:#dfe3ec;
-    --green:#16a34a; --amber:#e08a00; --red:#dc2626;
+    --ink:#1b2432; --ink2:#3a4658; --muted:#6b7688; --faint:#9aa4b2;
+    --line:#e7eaef; --line2:#eef1f5; --bg:#ffffff; --panel:#f8f9fb; --panel2:#f2f4f8;
+    --accent:#2b3a67; --blue:#2b3a67; --grayline:#aab2c5; --band:#e3e7ee; --teal:#0e7c86;
+    --green:#15803d; --amber:#b45309; --red:#b91c1c;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:1040px;margin:0 auto;padding:28px 22px 60px}
+  body{margin:0;background:var(--panel2);color:var(--ink);
+       font:15px/1.5 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  /* shared header / nav (matches the Overview page) */
+  .topbar{max-width:1040px;margin:0 auto;padding:16px 22px 0;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .brand{font-weight:700;font-size:16px;color:var(--accent);display:flex;align-items:center;gap:6px}
+  .topnav{display:flex;gap:4px;margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:3px}
+  .topnav a{font-size:13px;text-decoration:none;color:var(--muted);padding:5px 11px;border-radius:7px;transition:background .12s,color .12s}
+  .topnav a.active{background:#fff;color:var(--accent);font-weight:600;box-shadow:var(--shadow)}
+  .topnav a:hover:not(.active){color:var(--ink)}
+  .wrap{max-width:1040px;margin:0 auto;padding:14px 22px 30px}
+  /* interaction polish */
+  input[type=range]{accent-color:var(--accent);cursor:pointer}
+  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+  .mbtn{transition:background .12s,border-color .12s,color .12s}
+  .mbtn:focus-visible,.light:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+  a{transition:color .12s}
+  .foot{max-width:1040px;margin:0 auto;padding:16px 22px 40px;color:var(--faint);font-size:12px;border-top:1px solid var(--line)}
+  .foot a{color:var(--accent);text-decoration:none}
   h1{font-size:24px;margin:0 0 2px}
   .sub{color:var(--muted);margin:0 0 22px}
   .grid{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:stretch}
@@ -100,8 +120,14 @@
 </style>
 </head>
 <body>
+<div class="topbar">
+  <div class="brand"><svg width="15" height="15" viewBox="0 0 32 32" style="vertical-align:-2px"><rect width="32" height="32" rx="7" fill="#1b2432"/><path d="M5 22 L13 14 L19 18 L27 8" fill="none" stroke="#3aa0aa" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="8" r="2.6" fill="#3aa0aa"/></svg>US Recession Tracker</div>
+  <nav class="topnav">
+    <a href="index.html">Overview</a>
+    <a class="active" href="explore.html">Explore the interactive model</a>
+  </nav>
+</div>
 <div class="wrap">
-  <p style="margin:0 0 6px"><a href="index.html" style="color:#2563eb;text-decoration:none;font-size:13.5px">← Back to the Overview (three-signal rule)</a></p>
   <h1>Explore the interactive model</h1>
   <p class="sub" id="asof"></p>
   <p class="sub" style="margin-top:-2px">Move the four yield sliders to reshape the curve, drag the fragility inputs, and compare against history. Supporting/exploratory detail beyond the report's three-signal headline.</p>
@@ -547,5 +573,10 @@ document.getElementById('asof').textContent =
     + 'the false-alarm signature (see the term-premium trust check).';
 })();
 </script>
+<div class="foot">
+  <b>Data:</b> FRED + NY Fed ACM — public sources.
+  <a href="https://github.com/ishani-khanna/recession-model/blob/main/validation_report.md">Methodology &amp; validation →</a>
+  · updates weekly · Moody's DataBuffet optional (off) · for research, not investment advice.
+</div>
 </body>
 </html>

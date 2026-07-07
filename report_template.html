@@ -8,6 +8,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>US Recession Tracker — Three-Signal Rule</title>
+<meta name="description" content="A live US recession indicator: a three-signal rule (yield-curve probability + credit + term-premium trust check) read from public FRED and NY Fed data. Updates weekly.">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzFiMjQzMicvPjxwYXRoIGQ9J001IDIyIEwxMyAxNCBMMTkgMTggTDI3IDgnIGZpbGw9J25vbmUnIHN0cm9rZT0nIzNhYTBhYScgc3Ryb2tlLXdpZHRoPScyLjYnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCcvPjxjaXJjbGUgY3g9JzI3JyBjeT0nOCcgcj0nMi42JyBmaWxsPScjM2FhMGFhJy8+PC9zdmc+">
 <style>
   :root{
     --ink:#1b2432; --ink2:#3a4658; --muted:#6b7688; --faint:#9aa4b2;
@@ -20,7 +22,8 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--panel2);color:var(--ink);
        font:15px/1.55 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       -webkit-font-smoothing:antialiased}
+       -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;text-rendering:optimizeLegibility}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
   .page{max-width:1060px;margin:0 auto;padding:0 20px 64px}
   /* header shell */
   header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 0 14px;border-bottom:1px solid var(--line)}
@@ -33,8 +36,9 @@
   .meta{width:100%;color:var(--faint);font-size:12px;margin-top:8px}
   /* hero */
   .hero{margin:22px 0 8px;border-radius:16px;padding:20px 22px;border:1px solid;box-shadow:var(--shadow)}
-  .hero.clear{background:linear-gradient(180deg,#f0f8f2,#eaf7ee);border-color:#cfe8d6}
-  .hero.fire{background:linear-gradient(180deg,#fdf0f0,#fdecec);border-color:#f3c9c9}
+  .hero{background:#fff;border-left-width:4px}
+  .hero.clear{background:#fbfdfb;border-color:var(--line);border-left-color:var(--green)}
+  .hero.fire{background:#fefafa;border-color:var(--line);border-left-color:var(--red)}
   .hero .label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
   .hero .verdict{font-size:27px;font-weight:750;letter-spacing:-.02em;margin:2px 0 2px}
   .hero .verdict .ok{color:var(--green)} .hero .verdict .no{color:var(--red)}
@@ -86,7 +90,7 @@
 <body>
 <div class="page">
   <header>
-    <div class="brand">US Recession Tracker <span class="dot">●</span></div>
+    <div class="brand"><svg width="15" height="15" viewBox="0 0 32 32" style="vertical-align:-2px;margin-right:6px"><rect width="32" height="32" rx="7" fill="#1b2432"/><path d="M5 22 L13 14 L19 18 L27 8" fill="none" stroke="#3aa0aa" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="8" r="2.6" fill="#3aa0aa"/></svg>US Recession Tracker</div>
     <nav>
       <a class="active" href="index.html">Overview</a>
       <a href="explore.html">Explore the interactive model →</a>
@@ -206,7 +210,7 @@ function gauge(p, thr){
       <div class="subq">${s.sub}</div>
       <div class="big" style="color:${cls==='compressed'?'var(--red)':'var(--teal)'};margin-top:14px">${money(tp.tp_bp)} bp</div>
       <div class="model">${s.model}</div>
-      <span class="pill ${pc}" style="margin-top:6px">${cls} · ~${s.percentile}th pctile</span>
+      <span class="pill ${pc}" style="margin-top:6px">${cls} · ~${s.percentile_ord} pctile</span>
       <div class="thr">${s.fires_text} ${s.met?'<span class="pill p-green">clear</span>':'<span class="pill p-red">veto</span>'}</div>
       <div class="xtra">${s.crosscheck}</div></div>`;
   }).join("");
@@ -301,8 +305,11 @@ document.getElementById("caveats").innerHTML =
   +"spreads; the live reading plugs in the latest daily spread. <b>2Y history is short</b> (from 1976). "
   +"House prices were tested and excluded (they mute the non-housing recessions).";
 document.getElementById("foot").innerHTML =
-  "Data source: " + DATA.data_source + ". Turning on Moody's DataBuffet (two keys) upgrades signal 2's Aa leg "
-  +"automatically — no code change. Auto-refreshes weekly. Not investment advice.";
+  "<b>Data:</b> " + DATA.data_source + " — public sources. "
+  + "<a href='https://github.com/ishani-khanna/recession-model/blob/main/validation_report.md' "
+  + "style='color:var(--accent);text-decoration:none'>Methodology &amp; validation →</a>"
+  + " · Last updated " + DATA.generated + " · updates weekly · Moody's DataBuffet optional (off). "
+  + "For research, not investment advice.";
 </script>
 </body>
 </html>
