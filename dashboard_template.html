@@ -87,7 +87,7 @@
   .light .nm{font-weight:600;font-size:13px}
   .light .vl{color:var(--text);font-size:12.5px;font-family:var(--font-mono)}
   .light .th{color:var(--text-3);font-size:11px;font-family:var(--font-mono)}
-  .chart-card{margin-top:22px}
+  .chart-card{margin-top:18px}
   .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--text-2);font-size:11.5px;margin-top:8px;font-family:var(--font-mono)}
   .legend i{display:inline-block;width:20px;height:0;vertical-align:middle;margin-right:6px}
   .note{color:var(--text-2);font-size:12.5px;margin-top:18px;line-height:1.55}
@@ -111,7 +111,7 @@
   .wb-body{display:grid;grid-template-columns:1fr 264px;gap:0}
   @media(max-width:780px){.wb-body{grid-template-columns:1fr}}
   .wb-left{padding:var(--s4);min-width:0}
-  .wb-right{padding:var(--s4);border-left:1px solid var(--border);background:var(--bg-panel);display:flex;flex-direction:column;align-items:center}
+  .wb-right{padding:var(--s4);border-left:1px solid var(--border);background:var(--bg-panel);display:flex;flex-direction:column;align-items:center;justify-content:center}
   @media(max-width:780px){.wb-right{border-left:none;border-top:1px solid var(--border)}}
   .wb-right .gwrap{width:210px;max-width:100%}
   .sld{margin:var(--s3) 0}
@@ -195,7 +195,7 @@
   <!-- TRAJECTORY -->
   <div class="card chart-card">
     <h2>Model probability over time — recessions shaded</h2>
-    <svg id="chart" viewBox="0 0 1000 430" aria-label="trajectory chart"></svg>
+    <svg id="chart" viewBox="0 0 1000 360" aria-label="trajectory chart"></svg>
     <div class="legend">
       <span><i style="border-top:3px solid var(--blue)"></i>Real-time (expanding-window) — the honest track record</span>
       <span><i style="border-top:2px dashed var(--grayline)"></i>Fitted (uses all data) — flattering reference</span>
@@ -334,7 +334,7 @@ function signalGauge(val, threshold, display){
 
 /* ---------- trajectory chart ---------- */
 (function(){
-  const W=1000,H=430, m={t:18,r:16,b:34,l:42};
+  const W=1000,H=360, m={t:18,r:16,b:34,l:42};
   const pw=W-m.l-m.r, ph=H-m.t-m.b;
   const d=DATA.series.dates, N=d.length;
   const x=i=> m.l + (N<2?0:(i/(N-1))*pw);

@@ -56,7 +56,7 @@
   .hero .cond{font-size:14px;color:var(--text-2)}
   .hero .plain{font-size:13.5px;color:var(--text-2);margin-top:10px;padding-top:10px;border-top:1px solid var(--border-soft)}
   /* sections */
-  section{margin-top:28px}
+  section{margin-top:22px}
   .h{display:flex;align-items:baseline;gap:10px;margin:0 0 12px}
   .h h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0;color:var(--text)}
   .h .tag{font-family:var(--font-mono);font-size:11px;color:var(--text-3);letter-spacing:.02em}
@@ -148,7 +148,7 @@
   <section>
     <div class="h"><h2>Term-premium trust check</h2><span class="tag">signal 3 — why it matters</span></div>
     <div class="chartcard">
-      <svg id="tpChart" viewBox="0 0 1000 380" role="img" aria-label="ACM 10-year term premium since 1961 with the 50 basis point veto gate and the flagship recession probability overlaid"></svg>
+      <svg id="tpChart" viewBox="0 0 1000 330" role="img" aria-label="ACM 10-year term premium since 1961 with the 50 basis point veto gate and the flagship recession probability overlaid"></svg>
       <div class="legend">
         <span><i style="border-top:3px solid var(--teal)"></i>ACM 10Y term premium (pp, left)</span>
         <span><i style="border-top:3px solid var(--red);opacity:.45"></i>flagship probability (%, right)</span>
@@ -162,7 +162,7 @@
   <section>
     <div class="h"><h2>Flagship recession probability over time</h2><span class="tag">12-month, from the 10Y−3M spread</span></div>
     <div class="chartcard">
-      <svg id="traj" viewBox="0 0 1000 320" role="img" aria-label="Flagship 12-month recession probability from 1953 to today, with NBER recessions shaded"></svg>
+      <svg id="traj" viewBox="0 0 1000 285" role="img" aria-label="Flagship 12-month recession probability from 1953 to today, with NBER recessions shaded"></svg>
     </div>
     <p class="note">Full-sample probit; NBER recessions shaded. Out-of-sample AUC ≈ 0.80 over 8 modern onsets — the honest, validated track record.</p>
   </section>
@@ -236,7 +236,7 @@ function gauge(val, threshold, display){
     const tp=DATA.term_premium, cls=tp.tp_class, pc=cls==="compressed"?"p-red":"p-green";
     return `<div class="sig"><div class="no">Signal ${s.num}</div><div class="nm">${s.name}</div>
       <div class="subq">${s.sub}</div>
-      <div class="gwrap"><div class="big" style="color:${cls==='compressed'?'var(--bad)':'var(--accent)'}">${money(tp.tp_bp)} bp</div></div>
+      <div class="gwrap"><div class="big" style="color:${cls==='compressed'?'var(--bad)':'var(--text)'}">${money(tp.tp_bp)} bp</div></div>
       <div class="model">${s.model}</div>
       <span class="pill ${pc}" style="margin-top:8px">${cls} · ~${s.percentile_ord} pctile</span>
       <div class="cardfoot"><span class="foot-cap">${s.fires_text}</span>${s.met?'<span class="pill p-green">clear</span>':'<span class="pill p-red">veto</span>'}</div>
@@ -267,7 +267,7 @@ function gauge(val, threshold, display){
 
 /* ---- term-premium history chart ---- */
 (function(){
-  const W=1000,H=380,m={t:16,r:52,b:34,l:52},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const W=1000,H=330,m={t:16,r:52,b:34,l:52},pw=W-m.l-m.r,ph=H-m.t-m.b;
   const d=DATA.tp_series.dates,N=d.length,tp=DATA.tp_series.term_premium,fp=DATA.tp_series.flagship_prob;
   const idx={}; d.forEach((s,i)=>idx[s]=i);
   const x=i=>m.l+(N<2?0:(i/(N-1))*pw);
@@ -307,7 +307,7 @@ function gauge(val, threshold, display){
 
 /* ---- flagship probability trajectory ---- */
 (function(){
-  const W=1000,H=320,m={t:14,r:18,b:32,l:44},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const W=1000,H=285,m={t:14,r:18,b:32,l:44},pw=W-m.l-m.r,ph=H-m.t-m.b;
   const d=DATA.trajectory.dates,N=d.length,pr=DATA.trajectory.prob;
   const idx={}; d.forEach((s,i)=>idx[s]=i);
   const x=i=>m.l+(N<2?0:(i/(N-1))*pw), y=v=>m.t+(1-v/100)*ph;
