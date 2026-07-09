@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from yield_curve.data import build_dataset, config, acm
+from yield_curve.data import build_dataset, config, acm, conventions
 from yield_curve.data.fred_client import FredClient
 from yield_curve.models import probit
 from yield_curve import reporting
@@ -165,6 +165,16 @@ data = {
     "databuffet_on": db_on,
     "data_source": ("FRED + Moody's DataBuffet" if db_on
                     else "FRED + NY Fed ACM (Moody's DataBuffet off — Aa leg uses FRED Aaa)"),
+    # live daily curve (bond-equivalent 3m) — consumed by the Explore page so both pages agree
+    "live_curve": {
+        "y10": round(float(curve["DGS10"][0]), 2),
+        "y3m": round(float(conventions.discount_to_bond_equivalent(curve["DTB3"][0], config.BILL_BE_DAYS)), 2),
+        "y2": round(float(curve["DGS2"][0]), 2),
+        "fedfunds": round(float(curve["DFF"][0]), 2),
+        "spread_10y3m": round(float(term_current), 2),
+        "flagship_prob": clocks["flag12"],
+        "as_of": (term_asof.date().isoformat() if term_asof is not None else None),
+    },
 }
 
 os.makedirs("output", exist_ok=True)

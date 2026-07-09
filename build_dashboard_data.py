@@ -56,9 +56,24 @@ train_full = pd.DataFrame({"x": s_all, "y": y_all}).dropna()
 res_full = probit_fit(train_full["x"], train_full["y"])
 fitted = {d: probit_predict(res_full, x) for d, x in s_all.items()}
 
-# gauge = full-sample model's probability at the latest spread ("all data through")
+# LIVE daily curve from the Overview generator (build_two_clock_data writes it first in the
+# pipeline) so this Explore page shows the SAME current reading as the Overview. Falls back to
+# the latest monthly spread if the live file isn't present.
 latest_date = s_all.index.max()
-gauge_prob = probit_predict(res_full, s_all.loc[latest_date]) * 100
+LIVE = None
+try:
+    with open("output/two_clock_data.json") as _f:
+        LIVE = json.load(_f).get("live_curve")
+except Exception:
+    LIVE = None
+
+if LIVE and LIVE.get("flagship_prob") is not None:
+    gauge_prob = float(LIVE["flagship_prob"])          # daily bond-equivalent reading (matches Overview)
+    gauge_asof = LIVE.get("as_of") or latest_date.strftime("%Y-%m-%d")
+    gauge_label = f"current 12-month probability — live daily curve, as of {gauge_asof}"
+else:
+    gauge_prob = probit_predict(res_full, s_all.loc[latest_date]) * 100
+    gauge_label = f"current model probability (all data through {latest_date.strftime('%b %Y')})"
 
 # ---- REAL-TIME line: expanding-window walk-forward -------------------------
 realtime = {}
@@ -107,9 +122,11 @@ cv = verdict.loc[latest_date]
 rh = cv["real_hpi_yoy_lag2"]
 # thresholds pulled from the SHARED config so the lights can never drift from the matrix/verdict
 T = THRESHOLDS
+# current 10y-3m spread: the live daily (bond-equivalent) value when available, matching the Overview
+_spread_now = float(LIVE["spread_10y3m"]) if LIVE else float(cv["spread_10y_3m"])
 lights = [
-    {"name": "Curve inverted",            "value": f"{cv['spread_10y_3m']:+.2f} pp",
-     "threshold": f"warns if < {T['inverted']['value']:.2f} pp", "on": bool(cv["inverted"])},
+    {"name": "Curve inverted",            "value": f"{_spread_now:+.2f} pp",
+     "threshold": f"warns if < {T['inverted']['value']:.2f} pp", "on": _spread_now < T["inverted"]["value"]},
     {"name": "Household debt high",        "value": f"{cv['hh_debt_income']:.0f}% of income",
      "threshold": f"warns if > {T['leverage']['value']:.0f}%",   "on": bool(cv["debt_high"])},
     {"name": "Real house prices falling",  "value": ("n/a" if pd.isna(rh) else f"{rh:+.1f}% YoY"),
@@ -195,7 +212,12 @@ for nm, col in LAB_SPREADS.items():
 
 # current yields (slider defaults for the four-yield curve input)
 def last(c): return round(float(df[c].dropna().iloc[-1]), 2)
-lab_curve = {"y3m": last("y3m"), "y2": last("y2"), "y10": last("y10"), "fedfunds": last("fedfunds")}
+# lab sliders default to TODAY's live daily curve (so the opening spread + probability match the
+# Overview); fall back to the latest monthly yields if the live file is unavailable.
+if LIVE:
+    lab_curve = {"y3m": LIVE["y3m"], "y2": LIVE["y2"], "y10": LIVE["y10"], "fedfunds": LIVE["fedfunds"]}
+else:
+    lab_curve = {"y3m": last("y3m"), "y2": last("y2"), "y10": last("y10"), "fedfunds": last("fedfunds")}
 
 # current fragility values (slider defaults) + ranges + thresholds
 lab_frag = {
@@ -313,8 +335,8 @@ config_out = {"thresholds": {k: {"value": t["value"], "dir": t["dir"], "label": 
 plot_dates = list(s_all.index)
 data = {
     "as_of": latest_date.strftime("%Y-%m"),
-    "gauge": {"probability": round(gauge_prob, 1),
-              "label": f"current model probability (all data through {latest_date.strftime('%b %Y')})"},
+    "gauge": {"probability": (int(round(gauge_prob)) if float(gauge_prob).is_integer()
+                              else round(gauge_prob, 1)), "label": gauge_label},
     "character": {"short": short, "full": full, "class": cls},
     "lights": lights,
     "auc": {"realtime": round(rt_auc, 3), "onsets": rt_onsets, "insample": round(is_auc, 3),
