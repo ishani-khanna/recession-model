@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<!--
+  US Recession Tracker — Validation & methodology. Self-contained: the full validation report
+  (8 sections) + two engine charts are embedded below; no external libraries. Regenerate with
+  build_validation_data.py.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validation & methodology — US Recession Tracker</title>
+<meta name="description" content="Honest out-of-sample validation of the yield-curve recession model: OOS performance, the 2022-23 case study, lead times, false signals, the three-signal scorecard, what else was tried, and the literature.">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNCcgZmlsbD0nIzE2MTYxNicvPjxwYXRoIGQ9J001IDIyIEwxMyAxNCBMMTkgMTggTDI3IDgnIGZpbGw9J25vbmUnIHN0cm9rZT0nIzBGNjJGRScgc3Ryb2tlLXdpZHRoPScyLjYnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCcvPjxjaXJjbGUgY3g9JzI3JyBjeT0nOCcgcj0nMi42JyBmaWxsPScjMEY2MkZFJy8+PC9zdmc+">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --font-sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --bg-app:#FAFBFC; --bg-panel:#FFFFFF; --bg-inset:#F2F4F8; --bg-hover:#F7F9FC;
+    --border:#DDE1E6; --border-soft:#EDEFF2;
+    --text:#161616; --text-2:#697077; --text-3:#8D9299;
+    --accent:#0F62FE; --accent-soft:#EDF3FF;
+    --ok:#198038; --ok-bg:#DEFBE6; --warn:#B28600; --warn-bg:#FCF4D6; --bad:#DA1E28; --bad-bg:#FFF1F1;
+    --c1:#0F62FE; --c2:#6929C4; --c3:#007D79;           /* categorical series colors */
+    --r-sm:4px; --r-md:6px; --r-lg:8px;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
+    --ink:var(--text); --ink2:var(--text-2); --muted:var(--text-2); --faint:var(--text-3);
+    --line:var(--border); --line2:var(--border-soft); --panel:var(--bg-inset); --band:#E2E6EC;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-app);color:var(--text);
+       font:15px/1.55 var(--font-sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .num,.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+  .sigbar{height:3px;background:var(--accent)}
+  .page{max-width:1060px;margin:0 auto;padding:0 20px 56px}
+  /* header — identical to the other pages */
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 0 12px;border-bottom:1px solid var(--border)}
+  .brand{font-weight:600;font-size:15px;letter-spacing:-.01em;color:var(--text);display:flex;align-items:center;gap:7px}
+  .brand svg{width:16px;height:16px;flex:0 0 auto}
+  .live{font-family:var(--font-mono);font-size:11.5px;font-weight:500;letter-spacing:.03em;color:var(--text-2);display:flex;align-items:center;gap:7px}
+  .live .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg)}
+  nav{display:flex;gap:2px;margin-left:auto;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-sm);padding:2px}
+  nav a{font-family:var(--font-mono);font-size:12px;text-decoration:none;color:var(--text-2);padding:5px 12px;border-radius:3px;letter-spacing:.02em}
+  nav a.active{background:var(--accent);color:#fff;font-weight:500}
+  nav a:hover:not(.active){color:var(--text);background:var(--bg-inset)}
+  .meta{width:100%;font-family:var(--font-mono);color:var(--text-3);font-size:11.5px;margin-top:8px;letter-spacing:.02em}
+  h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:20px 0 2px}
+  .lede{color:var(--text-2);font-size:13.5px;margin:0 0 var(--s4)}
+  /* headline metric strip */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s3);margin:var(--s4) 0 var(--s6)}
+  @media(max-width:640px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-md);padding:var(--s3) var(--s4)}
+  .kpi .l{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+  .kpi .v{font-family:var(--font-mono);font-size:24px;font-weight:600;margin-top:2px}
+  /* charts */
+  .chart-h{display:flex;align-items:baseline;gap:10px;margin:var(--s6) 0 var(--s3)}
+  .chart-h h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0}
+  .chart-h .tag{font-family:var(--font-mono);font-size:11px;color:var(--text-3)}
+  .chartcard{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 14px 10px}
+  .twin{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
+  @media(max-width:720px){.twin{grid-template-columns:1fr}}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--text-2);font-size:11.5px;margin:8px 4px 0;font-family:var(--font-mono)}
+  .legend i{display:inline-block;width:18px;height:0;border-top-width:3px;border-top-style:solid;vertical-align:middle;margin-right:6px}
+  .legend .sw{width:13px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:6px}
+  svg{display:block;width:100%;height:auto}
+  text{fill:var(--text-2);font-family:var(--font-mono)}
+  /* report sections */
+  .vsec{margin-top:var(--s7);padding-top:var(--s5);border-top:1px solid var(--border)}
+  .vsec .eyebrow{font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
+  .vsec h2{font-size:17px;font-weight:600;letter-spacing:-.01em;margin:2px 0 var(--s3)}
+  .vsec p{font-size:13.5px;line-height:1.6;color:var(--ink2);margin:0 0 var(--s3)}
+  .vsec p strong{color:var(--text)}
+  .vsec ul{margin:0 0 var(--s3);padding-left:18px}
+  .vsec li{font-size:13.5px;line-height:1.6;color:var(--ink2);margin-bottom:6px}
+  .vsec code{font-family:var(--font-mono);font-size:12px;background:var(--bg-inset);border:1px solid var(--border-soft);border-radius:3px;padding:1px 5px}
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-md);margin:0 0 var(--s4)}
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--border-soft);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  td{font-family:var(--font-mono)}
+  td strong{font-family:var(--font-sans)}
+  thead th{background:var(--bg-inset);color:var(--text-2);font-family:var(--font-mono);font-weight:500;font-size:11px;
+       text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--border);position:sticky;top:0}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--bg-hover)}
+  footer{margin-top:var(--s7);padding:12px 0;border-top:1px solid var(--border);color:var(--text-3);font-size:11.5px;font-family:var(--font-mono);letter-spacing:.02em}
+  footer a{color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="sigbar"></div>
+<div class="page">
+  <header>
+    <div class="brand"><svg width="16" height="16" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#161616"/><path d="M5 22 L13 14 L19 18 L27 8" fill="none" stroke="#0F62FE" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="8" r="2.6" fill="#0F62FE"/></svg>US Recession Tracker</div>
+    <span class="live"><span class="dot"></span>LIVE · <span id="liveDate">—</span></span>
+    <nav>
+      <a href="index.html">Overview</a>
+      <a href="explore.html">Explore</a>
+      <a class="active" href="validation.html">Validation</a>
+    </nav>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <h1>Validation &amp; methodology</h1>
+  <p class="lede">Honest, out-of-sample validation of the model behind the tracker — expanding-window backtests, the 2022–23 case study, the three-signal scorecard, and everything that was tried and rejected. Every figure reads live from the engine.</p>
+
+  <div class="kpis" id="kpis"></div>
+
+  <!-- Charts not elsewhere on the site -->
+  <div class="chart-h"><h2>Term-spread comparison</h2><span class="tag">the three curve measures since 1953 · NBER recessions shaded</span></div>
+  <div class="chartcard">
+    <svg id="spreadChart" viewBox="0 0 1000 320" role="img" aria-label="The 10Y-3M, 10Y-2Y and 10Y-fed-funds term spreads since 1953 with NBER recessions shaded"></svg>
+    <div class="legend" id="spreadLegend"></div>
+  </div>
+
+  <div class="chart-h"><h2>Horizon sensitivity</h2><span class="tag">current probability &amp; in-sample AUC vs forecast horizon</span></div>
+  <div class="twin">
+    <div class="chartcard">
+      <svg id="probChart" viewBox="0 0 500 300" role="img" aria-label="Current recession probability by forecast horizon for each spread"></svg>
+    </div>
+    <div class="chartcard">
+      <svg id="aucChart" viewBox="0 0 500 300" role="img" aria-label="In-sample AUC by forecast horizon for each spread"></svg>
+    </div>
+  </div>
+  <div class="legend" id="horizonLegend" style="margin-top:10px"></div>
+
+  <!-- The full validation report, rendered as data tables -->
+  <div id="report"></div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const DATA = __VALIDATION_DATA__;
+const SPREAD_KEYS = ["10y3m","10y2y","10yffr"];
+const CVAR = {"10y3m":"var(--c1)","10y2y":"var(--c2)","10yffr":"var(--c3)"};
+
+document.getElementById("liveDate").textContent = (DATA.as_of_daily || DATA.generated || "n/a");
+document.getElementById("meta").textContent =
+  "DAILY CURVE " + (DATA.as_of_daily||"n/a") + "  ·  MONTHLY PANEL THROUGH " + DATA.monthly_through
+  + "  ·  PUBLIC DATA · FRED + NY FED ACM";
+
+/* headline KPIs */
+(function(){
+  const h=DATA.headline, cards=[
+    ["10Y−3M coef (12m)", h.coef],
+    ["In-sample AUC", h.in_auc],
+    ["Out-of-sample AUC", h.oos_auc],
+    ["Brier score", h.brier],
+  ];
+  document.getElementById("kpis").innerHTML = cards.map(([l,v])=>
+    `<div class="kpi"><div class="l">${l}</div><div class="v">${v==null?"—":v}</div></div>`).join("");
+})();
+
+/* ---- Chart 1: term-spread comparison (time series, NBER shaded) ---- */
+(function(){
+  const W=1000,H=320,m={t:14,r:16,b:30,l:44},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const S=DATA.spread_compare,d=S.dates,N=d.length,idx={}; d.forEach((s,i)=>idx[s]=i);
+  const all=[]; SPREAD_KEYS.forEach(k=>S.series[k].forEach(v=>{if(v!==null)all.push(v);}));
+  const lo=Math.min(-4,Math.floor(Math.min(...all))), hi=Math.max(4,Math.ceil(Math.max(...all)));
+  const x=i=>m.l+(N<2?0:(i/(N-1))*pw), y=v=>m.t+(1-(v-lo)/(hi-lo))*ph;
+  let s="";
+  S.recessions.forEach(rc=>{let a=idx[rc.start],b=idx[rc.end];if(a===undefined&&b===undefined)return;
+    if(a===undefined)a=0;if(b===undefined)b=N-1;s+=`<rect x="${x(a)}" y="${m.t}" width="${Math.max(1,x(b)-x(a))}" height="${ph}" fill="var(--band)"/>`;});
+  for(let v=lo;v<=hi;v+=2){s+=`<line x1="${m.l}" y1="${y(v)}" x2="${W-m.r}" y2="${y(v)}" stroke="var(--border-soft)"/>`;
+    s+=`<text x="${m.l-8}" y="${y(v)+3.5}" text-anchor="end" font-size="10.5" fill="var(--text-3)">${v>0?"+":""}${v}</text>`;}
+  s+=`<line x1="${m.l}" y1="${y(0)}" x2="${W-m.r}" y2="${y(0)}" stroke="var(--text-3)" stroke-width="1"/>`;
+  let ld=null; d.forEach((str,i)=>{const yr=+str.slice(0,4);if(yr%10===0&&str.slice(5)==="01"&&yr!==ld){ld=yr;
+    s+=`<text x="${x(i)}" y="${H-12}" text-anchor="middle" font-size="10.5" fill="var(--text-3)">${yr}</text>`;}});
+  s+=`<text x="13" y="${m.t+ph/2}" font-size="11" fill="var(--text-3)" transform="rotate(-90 13 ${m.t+ph/2})" text-anchor="middle">term spread (pp)</text>`;
+  const path=arr=>{let str="",pen=false;arr.forEach((v,i)=>{if(v===null){pen=false;return;}str+=(pen?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)+" ";pen=true;});return str;};
+  SPREAD_KEYS.forEach(k=>{const w=k==="10y3m"?2.1:1.3;
+    s+=`<path d="${path(S.series[k])}" fill="none" stroke="${CVAR[k]}" stroke-width="${w}" opacity="${k==="10y3m"?1:0.85}"/>`;});
+  document.getElementById("spreadChart").innerHTML=s;
+  document.getElementById("spreadLegend").innerHTML =
+    SPREAD_KEYS.map(k=>`<span><i style="border-top-color:${CVAR[k]}"></i>${S.labels[k]}${k==="10y3m"?" (flagship)":""}</span>`).join("")
+    + `<span><span class="sw" style="background:var(--band)"></span>NBER recession</span>`;
+})();
+
+/* ---- Chart 2: horizon sensitivity (two mini panels) ---- */
+function miniLine(svgId, hz, seriesByKey, yfmt, ylo, yhi, refY){
+  const W=500,H=300,m={t:16,r:14,b:36,l:44},pw=W-m.l-m.r,ph=H-m.t-m.b;
+  const x=i=>m.l+(i/(hz.length-1))*pw, y=v=>m.t+(1-(v-ylo)/(yhi-ylo))*ph;
+  let s="";
+  const step=(yhi-ylo)/4;
+  for(let k=0;k<=4;k++){const v=ylo+k*step;s+=`<line x1="${m.l}" y1="${y(v)}" x2="${W-m.r}" y2="${y(v)}" stroke="var(--border-soft)"/>`;
+    s+=`<text x="${m.l-7}" y="${y(v)+3.5}" text-anchor="end" font-size="10.5" fill="var(--text-3)">${yfmt(v)}</text>`;}
+  if(refY!=null){s+=`<line x1="${m.l}" y1="${y(refY)}" x2="${W-m.r}" y2="${y(refY)}" stroke="var(--text-3)" stroke-dasharray="4 3"/>`;}
+  hz.forEach((h,i)=>s+=`<text x="${x(i)}" y="${H-14}" text-anchor="middle" font-size="10.5" fill="var(--text-3)">${h}</text>`);
+  s+=`<text x="${m.l+pw/2}" y="${H-2}" text-anchor="middle" font-size="10.5" fill="var(--text-3)">horizon (months)</text>`;
+  SPREAD_KEYS.forEach(k=>{const arr=seriesByKey[k];
+    let p="";arr.forEach((v,i)=>{p+=(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)+" ";});
+    s+=`<path d="${p}" fill="none" stroke="${CVAR[k]}" stroke-width="${k==="10y3m"?2.1:1.3}"/>`;
+    arr.forEach((v,i)=>s+=`<circle cx="${x(i)}" cy="${y(v)}" r="${k==="10y3m"?3:2.4}" fill="${CVAR[k]}"/>`);});
+  document.getElementById(svgId).innerHTML=s;
+}
+(function(){
+  const Hd=DATA.horizon, hz=Hd.horizons;
+  const pAll=[]; SPREAD_KEYS.forEach(k=>Hd.probs[k].forEach(v=>pAll.push(v)));
+  miniLine("probChart", hz, Hd.probs, v=>v.toFixed(0)+"%", 0, Math.max(20,Math.ceil(Math.max(...pAll)/5)*5), null);
+  miniLine("aucChart", hz, Hd.aucs, v=>v.toFixed(2), 0.5, 0.9, 0.5);
+  document.getElementById("horizonLegend").innerHTML =
+    SPREAD_KEYS.map(k=>`<span><i style="border-top-color:${CVAR[k]}"></i>${Hd.labels[k]}</span>`).join("")
+    + `<span style="color:var(--text-3)">left: current probability · right: in-sample AUC (0.5 = coin flip)</span>`;
+})();
+
+/* ---- the full validation report as data tables ---- */
+(function(){
+  const host=document.getElementById("report");
+  host.innerHTML = DATA.sections.map(sec=>{
+    const mm=sec.title.match(/^(\d+)\.\s*(.*)$/);
+    const eyebrow = mm ? "Section "+mm[1] : "";
+    const title = mm ? mm[2] : sec.title;
+    const blocks = sec.blocks.map(b=>{
+      if(b.type==="p")   return `<p>${b.html}</p>`;
+      if(b.type==="list")return `<ul>${b.items.map(i=>`<li>${i}</li>`).join("")}</ul>`;
+      if(b.type==="table")return `<div class="tbl-wrap"><table><thead><tr>${
+        b.head.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${
+        b.rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+      return "";
+    }).join("");
+    return `<section class="vsec"><div class="eyebrow">${eyebrow}</div><h2>${title}</h2>${blocks}</section>`;
+  }).join("");
+})();
+
+document.getElementById("foot").innerHTML =
+  "Live data · FRED + NY Fed ACM · refreshes weekly · "
+  + "<a href='https://github.com/ishani-khanna/recession-model/blob/main/validation_report.md'>source report</a>"
+  + " · for research, not investment advice.";
+</script>
+</body>
+</html>

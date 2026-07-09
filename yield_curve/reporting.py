@@ -113,6 +113,52 @@ def two_clock_dashboard(panel: pd.DataFrame, term_current: float) -> dict:
             "credit_date": credit_date.date().isoformat()}
 
 
+def three_signal_status(panel: pd.DataFrame, term_current: float) -> dict:
+    """Current status of the three-signal rule (validation.md section 5):
+    flagship >= 30% AND augmented >= 15% AND ACM term premium >= 50 bp (not compressed).
+
+    Returns per-signal readings, firing flags, and the overall verdict. The ACM series
+    is used because the rule's veto is calibrated on it (Kim-Wright is the cross-check
+    in the term-premium context section). Components degrade independently -- a failed
+    feed marks its signal 'unavailable' rather than breaking the report.
+    """
+    from .models.term_premium import load_term_premium  # lazy: network/cache on first call
+    from .models.validation import THREE_SIGNAL
+
+    out = {"thresholds": dict(THREE_SIGNAL), "signals": {}, "n_firing": 0, "n_available": 0}
+
+    tc = None
+    try:
+        tc = two_clock_dashboard(panel, term_current)
+        out["inputs"] = tc
+        out["signals"]["flagship"] = {"value": tc["flag12"], "fires": tc["flag12"] >= THREE_SIGNAL["flagship"]}
+        out["signals"]["augmented"] = {"value": tc["aug3"], "fires": tc["aug3"] >= THREE_SIGNAL["augmented"]}
+    except Exception as e:  # noqa: BLE001 - flagship needs no DataBuffet; retry it alone
+        fr12 = probit.fit_spread_model(panel, "10y3m", 12, "probit")
+        flag12 = round(float(norm.cdf(fr12.intercept + fr12.coef * term_current)) * 100)
+        out["signals"]["flagship"] = {"value": flag12, "fires": flag12 >= THREE_SIGNAL["flagship"]}
+        out["signals"]["augmented"] = {"value": None, "error": str(e)}
+
+    try:
+        tp = load_term_premium("acm").dropna()
+        tp_bp = round(float(tp.iloc[-1]) * 100)
+        out["signals"]["term_premium"] = {
+            "value": tp_bp,
+            "date": tp.index[-1].date().isoformat(),
+            "percentile": round(float((tp < tp.iloc[-1]).mean()) * 100),
+            # the TP "fires" (allows a call) when NOT compressed; below the gate it vetoes
+            "fires": tp_bp >= THREE_SIGNAL["tp_bp"],
+        }
+    except Exception as e:  # noqa: BLE001
+        out["signals"]["term_premium"] = {"value": None, "error": str(e)}
+
+    avail = [s for s in out["signals"].values() if s.get("value") is not None]
+    out["n_available"] = len(avail)
+    out["n_firing"] = sum(1 for s in avail if s.get("fires"))
+    out["all_fire"] = out["n_available"] == 3 and out["n_firing"] == 3
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Current probabilities (full-sample probit, evaluated at the live spread)
 # --------------------------------------------------------------------------- #
@@ -251,6 +297,10 @@ def plot_horizon_sensitivity(panel: pd.DataFrame, spread_values: dict) -> str:
 # --------------------------------------------------------------------------- #
 # report.md
 # --------------------------------------------------------------------------- #
+def _ordinal(n: int) -> str:
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
 def _md_table(df: pd.DataFrame, index_label: str | None = None) -> str:
     df = df.copy()
     if index_label is not None:
@@ -292,101 +342,112 @@ def write_report(panel: pd.DataFrame) -> str:
          for k in config.SPREADS]
     )
 
-    primary_p12 = prob_daily.loc[config.DEFAULT_HORIZON, config.PRIMARY_SPREAD]
-
     L = []
     L.append("# Yield-Curve Recession Tracker — Current Reading\n")
     L.append(f"_Generated {dt.date.today().isoformat()}. Daily curve as of "
              f"**{asof_daily.date().isoformat()}**; monthly panel through "
              f"**{asof_monthly.date().isoformat()}**._\n")
 
-    L.append("## Headline\n")
-    verdict = ("The curve is **positively sloped** and the model reads recession risk "
-               "as **modest** — it does **not** signal an imminent recession.") if primary_p12 < 30 else (
-               "The model reads **elevated** recession risk — interpret with the "
-               "term-premium caveats below.")
-    L.append(f"- Primary spread (10Y−3M, bond-equivalent): **{spread_vals['10y3m']:+.2f} pp** "
-             f"(latest monthly {monthly_vals['10y3m']:+.2f}).\n"
-             f"- 12-month recession probability (primary): **{primary_p12:.0f}%**.\n"
-             f"- {verdict}\n")
+    # ---- Bottom line: the three-signal dashboard leads the report ---- #
+    ts = three_signal_status(panel, spread_vals["10y3m"])
+    sig, thr = ts["signals"], ts["thresholds"]
 
-    # Two-clock dashboard (graceful fallback if the Baa-Aa / DataBuffet pull fails).
-    try:
-        tc = two_clock_dashboard(panel, spread_vals["10y3m"])
-        L.append("\n## Two-clock dashboard\n")
-        L.append("Two complementary reads, each from the model best at its horizon "
-                 "(the augmented model adds the Baa−Aa credit spread, which sharpens the "
-                 "near-term read but is _not_ used at 12 months):\n")
-        L.append("| Clock | Model | Question | Reading |")
-        L.append("| --- | --- | --- | --- |")
-        L.append(f"| **12-month outlook** | term spread (flagship) | Is a recession building "
-                 f"over the next year? | **{tc['flag12']}%** |")
-        L.append(f"| **3-month watch** | term + Baa−Aa (augmented) | Is one arriving in the "
-                 f"next quarter? | **{tc['aug3']}%** |")
+    def _sigrow(s, fmt):
+        return fmt.format(s["value"]) if s.get("value") is not None else "_unavailable_"
+
+    if ts["n_available"] == 3:
+        headline = ("**Recession signal: FIRING — all three conditions met.**" if ts["all_fire"] else
+                    f"**Recession signal: NOT firing** — {ts['n_firing']} of 3 conditions met.")
+    else:
+        headline = (f"**Recession signal: NOT firing** — {ts['n_firing']} of {ts['n_available']} "
+                    "available conditions met (one feed unavailable this run; see table).")
+
+    L.append("## Bottom line\n")
+    L.append(headline + "\n")
+    L.append("| # | Signal | Question it answers | Current | Fires when | Status |")
+    L.append("| --- | --- | --- | --- | --- | --- |")
+    f_ = sig["flagship"]
+    L.append(f"| 1 | **12-month outlook** — flagship (term spread) | Is a recession building over "
+             f"the next year? | {_sigrow(f_, '**{}%**')} | ≥ {thr['flagship']:.0f}% | "
+             f"{'**firing**' if f_.get('fires') else 'not firing'} |")
+    a_ = sig["augmented"]
+    L.append(f"| 2 | **3-month watch** — augmented (term + Baa−Aa) | Is one arriving in the next "
+             f"quarter? | {_sigrow(a_, '**{}%**')} | ≥ {thr['augmented']:.0f}% | "
+             f"{('**firing**' if a_.get('fires') else 'not firing') if a_.get('value') is not None else '—'} |")
+    t_ = sig["term_premium"]
+    tp_status = ("—" if t_.get("value") is None else
+                 ("clear — no veto" if t_.get("fires") else "**compressed — vetoing**"))
+    L.append(f"| 3 | **Trust check** — ACM term premium | Is the curve's signal trustworthy, or "
+             f"distorted by a compressed premium? | {_sigrow(t_, '**{:+d} bp**')} | vetoes below "
+             f"{thr['tp_bp']:.0f} bp | {tp_status} |")
+
+    if ts.get("inputs"):
+        tc = ts["inputs"]
         credit_word = "calm" if tc["credit"] < 0.7 else ("elevated" if tc["credit"] > 1.3 else "moderate")
-        L.append(f"\nInputs: 10Y−3M term spread {tc['term']:+.2f} (bond-equivalent); Baa−Aa "
-                 f"credit spread {tc['credit']:+.2f} ({credit_word}, as of {tc['credit_date']}).")
-        both_low = tc["flag12"] < 30 and tc["aug3"] < 30
-        L.append("\n\n_" + (
-            "Both clocks are modest — the curve sees no recession building over the year, and "
-            f"with credit markets {credit_word}, the near-term watch is low."
-            if both_low else
-            "At least one clock is elevated — see the per-horizon table and caveats below."
-        ) + "_")
+        pieces = []
+        pieces.append(f"the curve is {'**inverted**' if spread_vals['10y3m'] < 0 else 'positively sloped'} "
+                      f"(10Y−3M {spread_vals['10y3m']:+.2f} pp)")
+        pieces.append(f"credit is {credit_word} (Baa−Aa {tc['credit']:+.2f} pp)")
+        if t_.get("value") is not None:
+            pieces.append(f"the term premium is {'compressed' if not t_.get('fires') else 'not compressed'} "
+                          f"({t_['value']:+d} bp, ~{_ordinal(t_['percentile'])} percentile since 1961)")
+        L.append("\nIn plain English: " + "; ".join(pieces) + ".")
+    L.append("\n\n_The rule calls a recession only when all three confirm. In-sample it catches "
+             "7 of 8 modern recessions with zero false alarms (the miss is COVID-2020, which no "
+             "yield-curve model predicted) — but its thresholds are tuned on that same history, "
+             "so read it as a clean in-sample pattern, not a validated forecast. Details and "
+             "caveats: validation report, section 5._")
 
-    except Exception as e:  # noqa: BLE001 - dashboard must never break the report
-        L.append(f"\n## Two-clock dashboard\n\n_Augmented 3-month clock unavailable this run "
-                 f"({e}); the 12-month flagship reading is in the headline above._")
-
-    L.append("\n## Live curve\n")
+    L.append("\n## Today's curve — the model inputs\n")
+    L.append(f"- Primary spread (10Y−3M, bond-equivalent): **{spread_vals['10y3m']:+.2f} pp** "
+             f"daily ({monthly_vals['10y3m']:+.2f} latest monthly average).\n")
     L.append(_md_table(curve_rows))
-    L.append("\n\n## Current spreads\n")
+    L.append("\n")
     L.append(_md_table(spread_rows))
     L.append("\n\n_The 3-month bill (DTB3/TB3MS, quoted discount-basis) is converted to a "
              "coupon-equivalent (bond-equivalent) yield before differencing, matching the 10Y "
-             "constant-maturity leg and the NY Fed convention. The 'Live curve' DTB3 above is the "
-             "raw discount quote._")
+             "constant-maturity leg and the NY Fed convention. The raw DTB3 quote above is "
+             "discount-basis._")
 
-    L.append("\n\n## Recession probability — spread × horizon (probit, % )\n")
-    L.append("Evaluated at the live daily spread; full-sample probit coefficients.\n")
+    L.append("\n\n## Recession probability by spread and horizon\n")
+    L.append("Full-sample probit fits evaluated at the live daily spread — how the read changes "
+             "with the spread definition and forecast horizon. The flagship reading in the "
+             "dashboard above is the 10Y−3M column at 12 months; the model's discrimination "
+             "peaks at the 12–18-month lead.\n")
     L.append(_md_table(prob_daily, index_label="horizon (months)"))
 
-    # Term-premium diagnostic (context only; the model uses the raw spread).
+    # Term-premium context (signal 3 of the dashboard; not a model regressor).
+    L.append("\n\n## Term-premium context — why the trust check matters\n")
+    L.append(
+        "The 10Y−3M slope splits into an **expectations component** (expected average "
+        "short rate vs today's) and a **term premium**. An inversion driven by the "
+        "expectations component is recession-predictive; one driven by a *compressed* "
+        "term premium (as in 2022–23) is not — that is what signal 3 above screens for. "
+        "The premium is used only as this **veto/trust check**: adding it to the probit as a "
+        "regressor does not robustly improve out-of-sample accuracy (the gain flips sign "
+        "between the long ACM (1961+) and shorter Kim–Wright (1990+) samples), so the model "
+        "itself stays on the raw spread.\n")
+    if sig["term_premium"].get("value") is not None:
+        t_ = sig["term_premium"]
+        state = "**compressed** — the 2022–23 failure mode" if not t_["fires"] else "not compressed"
+        L.append(f"\n- **ACM 10Y term premium (the rule's gauge):** {t_['value']:+d} bp "
+                 f"(as of {t_['date']}) — ~{_ordinal(t_['percentile'])} percentile since 1961, {state}; "
+                 f"the veto gate is {thr['tp_bp']:.0f} bp.\n")
     try:
         tpd = term_premium_diagnostic(spread_vals["10y3m"])
-        L.append("\n\n## Term-premium diagnostic — context, _not_ used in the model\n")
+        agree = None
+        if sig["term_premium"].get("value") is not None:
+            agree = ("agrees" if (tpd["tp_class"] == "compressed") == (not sig["term_premium"]["fires"])
+                     else "**disagrees**")
         L.append(
-            "The 10Y−3M slope splits into an **expectations component** (expected average "
-            "short rate vs today's) and a **term premium**. An inversion driven by the "
-            "expectations component is recession-predictive; one driven by a *compressed* "
-            "term premium (as in 2022–23) is not. Conditioning the model on the term premium "
-            "tempers the 2022–23 false alarm but does **not** robustly improve out-of-sample "
-            "accuracy — the OOS AUC gain from adding it flips sign between the long ACM (1961+) "
-            "and shorter Kim–Wright (1990+) samples (10Y−3M: 0.79→0.80 on ACM vs 0.60→0.46 on "
-            "Kim–Wright) — so it is reported here as a flag only.\n")
-        L.append(
-            f"\n- **10Y term premium (Kim–Wright):** {tpd['tp_current']:+.2f} pp "
-            f"(as of {tpd['tp_date']}) — ~{tpd['tp_percentile']}th percentile since 1990, "
-            f"**{tpd['tp_class']}** (vs ~{tpd['tp_compressed_2020_21']:+.2f} in the compressed "
-            f"2020–21 era).\n"
-            f"- **Decomposition (10Y term premium only):** of the {tpd['spread']:+.2f} pp slope, "
-            f"{tpd['tp_current']:+.2f} pp is 10Y term premium, leaving a {tpd['exp_component']:+.2f} pp "
-            f"expectations residual (= slope − 10Y term premium; the residual also nets the small "
-            f"3M-bill term premium).\n")
-        if tpd["tp_class"] == "compressed":
-            L.append("- **Flag:** the term premium is compressed, so the raw curve signal may "
-                     "**overstate** recession risk (the 2022–23 failure mode). Weight the "
-                     "expectations component accordingly.\n")
-        else:
-            L.append("- **Flag:** on this (single, Kim–Wright) estimate the term premium is not "
-                     "compressed the way it was in 2022–23, so the raw curve signal is **less likely "
-                     "to be distorted** than it was then. The expectations residual is "
-                     + ("roughly flat" if abs(tpd["exp_component"]) < 0.25 else
-                        ("clearly positive" if tpd["exp_component"] > 0 else "mildly negative"))
-                     + " — directional context, not a validated adjustment.\n")
-
+            f"- **Kim–Wright cross-check:** {tpd['tp_current']:+.2f} pp (as of {tpd['tp_date']}, "
+            f"daily) — ~{_ordinal(tpd['tp_percentile'])} percentile since 1990, {tpd['tp_class']}"
+            + (f"; {agree} with the ACM read" if agree else "") + ".\n"
+            f"- **Decomposition:** of the {tpd['spread']:+.2f} pp slope, {tpd['tp_current']:+.2f} pp "
+            f"is 10Y term premium (KW), leaving a {tpd['exp_component']:+.2f} pp expectations "
+            f"residual — directional context, not a validated adjustment.\n")
     except Exception as e:  # noqa: BLE001 - diagnostic must never break the report
-        L.append(f"\n\n## Term-premium diagnostic\n\n_Unavailable this run ({e})._\n")
+        L.append(f"- _Kim–Wright cross-check unavailable this run ({e})._\n")
 
     L.append("\n\n## Charts\n")
     L.append("![Flagship recession probability](flagship_recession_probability.png)\n")
@@ -394,14 +455,18 @@ def write_report(panel: pd.DataFrame) -> str:
     L.append("\n![Spread comparison](spread_comparison.png)\n")
     L.append("\n![Horizon sensitivity](horizon_sensitivity.png)\n")
 
-    L.append("\n## Interpretation caveats\n")
+    L.append("\n## How to read this report — caveats\n")
     L.append(
+        "- **The dashboard thresholds are in-sample.** The 30% / 15% / 50 bp triggers are "
+        "episode-optimal on the 1953+ history (8 recessions, 2 false alarms) — a clean "
+        "in-sample pattern, not an out-of-sample-validated rule. The probabilities themselves "
+        "*are* validated out-of-sample (see the validation report).\n"
         "- **Term-premium compression.** The deep 2022–2023 inversion drove the "
-        "model's probability to ~77% with no NBER recession (so far). A compressed/"
-        "negative term premium can make a given inversion overstate recession odds; "
-        "read the raw signal conditioned on the term premium. See `validation.md`.\n"
-        "- **2020 was exogenous.** The COVID recession was not curve-predicted; an "
-        "exclude-2020 estimation variant is available and barely changes the fit.\n"
+        "model's probability to ~77% with no NBER recession — the failure mode signal 3 "
+        "screens for. A compressed premium makes a given inversion overstate recession odds.\n"
+        "- **2020 was exogenous.** The COVID recession was not curve-predicted (and is the "
+        "three-signal rule's one miss); an exclude-2020 estimation variant barely changes "
+        "the fit.\n"
         "- **Monthly vs daily.** Coefficients are estimated on monthly-average spreads; "
         "the live reading plugs in the latest daily spread (typically within a few bp).\n"
         "- **2Y history is short** (from 1976), so 10Y−2Y has fewer observations than "

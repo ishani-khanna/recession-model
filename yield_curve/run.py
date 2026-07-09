@@ -31,6 +31,7 @@ _DASHBOARD_STEPS = [
     "build_two_clock_data.py",     # landing page: three-signal rule  -> docs/index.html
     "build_dataset.py", "build_features.py", "build_verdict.py",
     "build_dashboard_data.py",     # interactive explore page (gauge/lab/matrix) -> docs/explore.html
+    "build_validation_data.py",    # validation & methodology page (8 sections + charts) -> docs/validation.html
 ]
 
 

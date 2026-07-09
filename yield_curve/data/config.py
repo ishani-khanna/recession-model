@@ -78,7 +78,8 @@ SPREADS = {
         "long": "GS10", "short": "TB3MS",
         "long_d": "DGS10", "short_d": "DTB3",
         "primary": True,
-        "note": "Estrella–Mishkin / NY Fed standard. Primary spread.",
+        "note": "Estrella–Mishkin / NY Fed standard. Primary spread. 3M leg is "
+                "converted discount→bond-equivalent before differencing.",
     },
     "10y2y": {
         "label": "10Y − 2Y",
@@ -104,9 +105,11 @@ DEFAULT_HORIZON = 12
 # points). 2 basis points = 0.02 pp.
 RECONCILE_TOLERANCE_PP = 0.02
 
-# 3-month bill is quoted discount-basis; convert to bond-equivalent before differencing.
-DISCOUNT_BASIS_BILLS = {"DTB3"}   # the only discount-basis daily series in FRED_DAILY
-BILL_BE_DAYS = 91                 # 13-week bill, days to maturity
+# The 3-month bill series are quoted on a DISCOUNT basis; they are converted to a
+# coupon-equivalent (bond-equivalent) yield before forming the 10Y-3M spread, to
+# match the 10Y constant-maturity (investment basis) leg and the NY Fed convention.
+DISCOUNT_BASIS_BILLS = {"TB3MS", "DTB3"}
+BILL_BE_DAYS = 91  # days to maturity used in the coupon-equivalent conversion
 
 # --------------------------------------------------------------------------- #
 # DataBuffet mnemonics

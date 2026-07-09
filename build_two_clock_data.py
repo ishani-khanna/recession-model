@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
+import credit_fallback  # noqa: F401  WIRING: Signal-2 Baa−Aa -> FRED Aaa substitute when DataBuffet off
 from yield_curve.data import build_dataset, config, acm, conventions
 from yield_curve.data.fred_client import FredClient
 from yield_curve.models import probit
