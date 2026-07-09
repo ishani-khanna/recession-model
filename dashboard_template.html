@@ -13,119 +13,157 @@
 <meta name="description" content="Interactive yield-curve recession model: reshape the curve, move the fragility inputs, and compare against every recession since 1953. Companion to the three-signal Overview.">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzFiMjQzMicvPjxwYXRoIGQ9J001IDIyIEwxMyAxNCBMMTkgMTggTDI3IDgnIGZpbGw9J25vbmUnIHN0cm9rZT0nIzNhYTBhYScgc3Ryb2tlLXdpZHRoPScyLjYnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCcvPjxjaXJjbGUgY3g9JzI3JyBjeT0nOCcgcj0nMi42JyBmaWxsPScjM2FhMGFhJy8+PC9zdmc+">
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
   :root{
-    --ink:#1b2432; --ink2:#3a4658; --muted:#6b7688; --faint:#9aa4b2;
-    --line:#e7eaef; --line2:#eef1f5; --bg:#ffffff; --panel:#f8f9fb; --panel2:#f2f4f8;
-    --accent:#2b3a67; --blue:#2b3a67; --grayline:#aab2c5; --band:#e3e7ee; --teal:#0e7c86;
-    --green:#15803d; --amber:#b45309; --red:#b91c1c;
-    --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);
+    --font-sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --bg-app:#FAFBFC; --bg-panel:#FFFFFF; --bg-inset:#F2F4F8; --bg-hover:#F7F9FC;
+    --border:#DDE1E6; --border-soft:#EDEFF2;
+    --text:#161616; --text-2:#697077; --text-3:#8D9299;
+    --accent:#0F62FE; --accent-soft:#EDF3FF;
+    --ok:#198038; --ok-bg:#DEFBE6; --warn:#B28600; --warn-bg:#FCF4D6; --bad:#DA1E28; --bad-bg:#FFF1F1;
+    --r-sm:4px; --r-md:6px; --r-lg:8px;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
+    /* aliases so existing chart/gauge/table code re-colors from these tokens */
+    --ink:var(--text); --ink2:var(--text-2); --muted:var(--text-2); --faint:var(--text-3);
+    --line:var(--border); --line2:var(--border-soft); --panel:var(--bg-inset); --panel2:var(--bg-app);
+    --green:var(--ok); --amber:var(--warn); --red:var(--bad); --teal:var(--accent);
+    --blue:var(--accent); --grayline:#B6BCC4; --band:#E2E6EC; --track:var(--bg-inset);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--panel2);color:var(--ink);
-       font:15px/1.5 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  body{margin:0;background:var(--bg-app);color:var(--text);
+       font:15px/1.5 var(--font-sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .mono,.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+  .sigbar{height:3px;background:var(--accent)}
   /* shared header / nav (matches the Overview page) */
-  .topbar{max-width:1040px;margin:0 auto;padding:16px 22px 0;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-  .brand{font-weight:700;font-size:16px;color:var(--accent);display:flex;align-items:center;gap:6px}
-  .topnav{display:flex;gap:4px;margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:3px}
-  .topnav a{font-size:13px;text-decoration:none;color:var(--muted);padding:5px 11px;border-radius:7px;transition:background .12s,color .12s}
-  .topnav a.active{background:#fff;color:var(--accent);font-weight:600;box-shadow:var(--shadow)}
-  .topnav a:hover:not(.active){color:var(--ink)}
-  .wrap{max-width:1040px;margin:0 auto;padding:14px 22px 30px}
-  /* interaction polish */
-  input[type=range]{accent-color:var(--accent);cursor:pointer}
-  input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+  .topbar{max-width:1060px;margin:0 auto;padding:14px 20px 12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+  .live{font-family:var(--font-mono);font-size:11.5px;font-weight:500;letter-spacing:.03em;color:var(--text-2);display:flex;align-items:center;gap:7px}
+  .live .dot{width:7px;height:7px;margin-top:0;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg)}
+  .brand{font-weight:600;font-size:15px;letter-spacing:-.01em;color:var(--text);display:flex;align-items:center;gap:7px}
+  .topnav{display:flex;gap:2px;margin-left:auto;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-sm);padding:2px}
+  .topnav a{font-family:var(--font-mono);font-size:12px;text-decoration:none;color:var(--text-2);padding:5px 12px;border-radius:3px;letter-spacing:.02em;transition:background .12s,color .12s}
+  .topnav a.active{background:var(--accent);color:#fff;font-weight:500}
+  .topnav a:hover:not(.active){color:var(--text);background:var(--bg-inset)}
+  .datachip{font-family:var(--font-mono);font-size:11px;color:var(--text-2);background:var(--bg-inset);border:1px solid var(--border);border-radius:3px;padding:4px 9px;letter-spacing:.02em}
+  .wrap{max-width:1060px;margin:0 auto;padding:var(--s6) 20px var(--s7)}
+  /* custom range sliders — slim track, accent fill, clean thumb (no default browser slider) */
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer;margin:0}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;
+    background:linear-gradient(90deg,var(--accent) 0 var(--pct,0%),var(--bg-inset) var(--pct,0%) 100%)}
+  input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--bg-inset)}
+  input[type=range]::-moz-range-progress{height:4px;border-radius:2px;background:var(--accent)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;margin-top:-5px;
+    border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 1px var(--border);transition:transform .1s}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid #fff;box-shadow:0 0 0 1px var(--border)}
+  input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.14)}
+  input[type=range]:focus-visible{outline:none}
+  input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px var(--accent-soft)}
+  input[type=range]:focus-visible::-moz-range-thumb{box-shadow:0 0 0 3px var(--accent-soft)}
   .mbtn{transition:background .12s,border-color .12s,color .12s}
   .mbtn:focus-visible,.light:focus-within{outline:2px solid var(--accent);outline-offset:2px}
   a{transition:color .12s}
-  .foot{max-width:1040px;margin:0 auto;padding:16px 22px 40px;color:var(--faint);font-size:12px;border-top:1px solid var(--line)}
+  .foot{max-width:1060px;margin:0 auto;padding:var(--s4) 20px 40px;color:var(--text-3);font-size:11.5px;font-family:var(--font-mono);letter-spacing:.02em;border-top:1px solid var(--border)}
   .foot a{color:var(--accent);text-decoration:none}
-  h1{font-size:24px;margin:0 0 2px}
-  .sub{color:var(--muted);margin:0 0 22px}
-  .grid{display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:stretch}
+  h1{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0 0 2px}
+  .sub{color:var(--text-2);margin:0 0 var(--s4)}
+  .grid{display:grid;grid-template-columns:300px 1fr;gap:var(--s5);align-items:stretch}
   @media(max-width:780px){.grid{grid-template-columns:1fr}}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
-  .card h2{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
-  .gauge-wrap{display:flex;flex-direction:column;align-items:center}
-  .gauge-num{font-size:46px;font-weight:700;margin-top:-8px}
-  .gauge-lbl{color:var(--muted);font-size:12.5px;text-align:center;margin-top:2px}
-  .banner{border-radius:12px;padding:14px 16px;font-weight:600;margin-bottom:14px;border:1px solid}
-  .banner small{display:block;font-weight:400;margin-top:4px;line-height:1.45}
-  .b-clear{background:#eafaf0;border-color:#bfe9cf;color:#10632f}
-  .b-nocc {background:#fff5e6;border-color:#ffd9a3;color:#8a4b00}
-  .b-warn {background:#fdecec;border-color:#f6bcbc;color:#a01818}
-  .lights{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-md);padding:var(--s5)}
+  .card h2{font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin:0 0 var(--s4);
+    padding-bottom:var(--s2);border-bottom:1px solid var(--border-soft)}
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .gauge-wrap .gwrap{width:220px;max-width:100%}
+  .gauge-lbl{color:var(--text-2);font-size:12px;text-align:center;margin-top:var(--s2);max-width:230px;font-family:var(--font-mono)}
+  .banner{border-radius:var(--r-sm);padding:13px 15px;font-weight:600;margin-bottom:14px;border:1px solid;border-left-width:3px}
+  .banner small{display:block;font-weight:400;margin-top:5px;line-height:1.45;font-family:var(--font-sans)}
+  .b-clear{background:var(--ok-bg);border-color:transparent;border-left-color:var(--ok);color:var(--ok)}
+  .b-nocc {background:var(--warn-bg);border-color:transparent;border-left-color:var(--warn);color:var(--warn)}
+  .b-warn {background:var(--bad-bg);border-color:transparent;border-left-color:var(--bad);color:var(--bad)}
+  .lights{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   @media(max-width:520px){.lights{grid-template-columns:1fr}}
-  .light{display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--line);
-         border-radius:10px;padding:10px 12px}
-  .dot{width:12px;height:12px;border-radius:50%;margin-top:4px;flex:0 0 auto}
-  .light .nm{font-weight:600;font-size:13.5px}
-  .light .vl{color:var(--ink);font-size:13px}
-  .light .th{color:var(--muted);font-size:11.5px}
+  .light{display:flex;align-items:flex-start;gap:10px;background:var(--bg-panel);border:1px solid var(--border);
+         border-radius:var(--r-sm);padding:10px 12px}
+  .dot{width:10px;height:10px;border-radius:50%;margin-top:4px;flex:0 0 auto}
+  .light .nm{font-weight:600;font-size:13px}
+  .light .vl{color:var(--text);font-size:12.5px;font-family:var(--font-mono)}
+  .light .th{color:var(--text-3);font-size:11px;font-family:var(--font-mono)}
   .chart-card{margin-top:22px}
-  .legend{display:flex;gap:20px;flex-wrap:wrap;color:var(--muted);font-size:12.5px;margin-top:8px}
-  .legend i{display:inline-block;width:22px;height:0;vertical-align:middle;margin-right:6px}
-  .note{color:var(--muted);font-size:12.5px;margin-top:18px;line-height:1.55}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--text-2);font-size:11.5px;margin-top:8px;font-family:var(--font-mono)}
+  .legend i{display:inline-block;width:20px;height:0;vertical-align:middle;margin-right:6px}
+  .note{color:var(--text-2);font-size:12.5px;margin-top:18px;line-height:1.55}
   svg{display:block;width:100%;height:auto}
-  text{fill:var(--ink)}
+  .brand svg{width:16px;height:16px;flex:0 0 auto}
+  text{fill:var(--text-2);font-family:var(--font-mono)}
   /* ---- scenario lab ---- */
-  .lab{margin-top:22px}
-  .lab h3{font-size:14px;margin:18px 0 10px}
-  .lab-models{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
-  .mbtn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 12px;cursor:pointer;
-        font:inherit;font-size:13px;color:var(--ink);transition:all .12s}
-  .mbtn small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
-  .mbtn.active{border-color:var(--blue);background:#eef3ff;color:var(--blue);font-weight:600}
-  .mbtn.active small{color:var(--blue)}
-  .lab-grid{display:grid;grid-template-columns:1fr 300px;gap:22px;align-items:start;margin-top:8px}
-  @media(max-width:780px){.lab-grid{grid-template-columns:1fr}}
-  .sld{margin:9px 0}
-  .sld label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px}
-  .sld label b{font-variant-numeric:tabular-nums}
-  .sld input[type=range]{width:100%}
-  .frag-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 22px}
+  .lab{margin-top:var(--s5)}
+  .lab h3{font-size:13.5px;font-weight:600;letter-spacing:-.01em;margin:var(--s5) 0 var(--s3)}
+  .eyebrow{font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin:0 0 var(--s2)}
+  .lab-models{display:flex;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s2)}
+  .mbtn{border:1px solid var(--border);background:var(--bg-panel);border-radius:var(--r-sm);padding:8px 12px;cursor:pointer;
+        font:inherit;font-size:12.5px;font-family:var(--font-mono);color:var(--text);transition:all .12s}
+  .mbtn small{display:block;color:var(--text-2);font-size:10.5px;margin-top:2px}
+  .mbtn.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .mbtn.active small{color:var(--accent)}
+  /* the workbench: curve + sliders + live gauge in one bordered instrument */
+  .workbench{border:1px solid var(--border);border-radius:var(--r-md);background:var(--bg-inset);overflow:hidden;margin-top:var(--s2)}
+  .wb-head{display:flex;align-items:baseline;gap:var(--s2);padding:var(--s3) var(--s4);border-bottom:1px solid var(--border);
+    background:var(--bg-panel);font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+  .wb-body{display:grid;grid-template-columns:1fr 264px;gap:0}
+  @media(max-width:780px){.wb-body{grid-template-columns:1fr}}
+  .wb-left{padding:var(--s4);min-width:0}
+  .wb-right{padding:var(--s4);border-left:1px solid var(--border);background:var(--bg-panel);display:flex;flex-direction:column;align-items:center}
+  @media(max-width:780px){.wb-right{border-left:none;border-top:1px solid var(--border)}}
+  .wb-right .gwrap{width:210px;max-width:100%}
+  .sld{margin:var(--s3) 0}
+  .sld label{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;color:var(--text-2);margin-bottom:6px}
+  .sld label b{font-family:var(--font-mono);color:var(--text);font-weight:600}
+  .frag-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s2) var(--s5)}
   @media(max-width:560px){.frag-grid{grid-template-columns:1fr}}
-  .spreadbox{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:13px}
-  .spreadbox span{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
-  .spreadbox b{font-variant-numeric:tabular-nums}
-  .resembles{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
-  .resembles b{font-size:15px}
-  .lab-gauge-num{font-size:34px;font-weight:700;text-align:center;margin-top:-6px}
-  .warnlabel{font-size:12px;color:var(--muted)}
-  table.sc{width:100%;border-collapse:collapse;font-size:13px}
-  table.sc th,table.sc td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--line)}
+  .spreadbox{display:flex;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s3);font-size:12px}
+  .spreadbox span{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-sm);padding:5px 10px;color:var(--text-2);font-family:var(--font-mono)}
+  .spreadbox b{margin-left:4px}
+  .resembles{margin-top:var(--s4);background:var(--bg-inset);border:1px solid var(--border);border-radius:var(--r-sm);padding:var(--s4)}
+  .resembles b{font-size:14px}
+  .warnlabel{font-size:12px;color:var(--text-2)}
+  table.sc{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.sc th,table.sc td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--border-soft)}
   table.sc th:first-child,table.sc td:first-child{text-align:left}
-  table.sc th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
-  table.sc tr.def td{background:#eef3ff}
-  table.sc td.best{color:var(--green);font-weight:700}
-  .rankline{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+  table.sc td{font-family:var(--font-mono)}
+  table.sc th{color:var(--text-2);font-family:var(--font-mono);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.03em;background:var(--bg-inset)}
+  table.sc tr.def td{background:var(--accent-soft)}
+  table.sc td.best{color:var(--ok);font-weight:700}
+  .rankline{font-size:12.5px;color:var(--text-2);margin-top:8px;line-height:1.5}
   /* ---- conditions matrix ---- */
-  table.mx{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
-  table.mx th,table.mx td{padding:6px 7px;text-align:center;border-bottom:1px solid var(--line)}
+  table.mx{width:100%;border-collapse:collapse;font-size:12px}
+  table.mx th,table.mx td{padding:6px 7px;text-align:center;border-bottom:1px solid var(--border-soft)}
+  table.mx td{font-family:var(--font-mono)}
   table.mx th:first-child,table.mx td:first-child{text-align:left;white-space:nowrap}
-  table.mx thead .blk{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);
-       border-bottom:2px solid var(--line)}
-  table.mx thead .blk.lead{color:#1b4ed8}
-  table.mx thead .blk.coin{color:#8a4b00}
-  table.mx th.col{font-size:11px;color:var(--ink);font-weight:600;line-height:1.2}
-  table.mx th.col small{display:block;color:var(--muted);font-weight:400;font-size:10px}
-  td.dng{background:#fdecec;color:#a01818;font-weight:700}
-  td.ben{background:#eafaf0;color:#10632f}
-  td.na{color:#c2c7d2}
-  td.out-rec{background:#fdecec;color:#a01818;font-weight:600;text-align:left}
-  td.out-no{background:#eafaf0;color:#10632f;text-align:left}
-  td.out-today{background:#eef3ff;color:#1b4ed8;font-weight:600;text-align:left}
-  table.mx tr.today td{border-top:2px solid var(--blue);font-weight:600}
-  .divider{border-left:2px solid var(--line)}
+  table.mx thead .blk{font-family:var(--font-mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--text-2);
+       border-bottom:1px solid var(--border)}
+  table.mx thead .blk.lead{color:var(--accent)}
+  table.mx thead .blk.coin{color:var(--warn)}
+  table.mx th.col{font-size:11px;color:var(--text);font-weight:600;line-height:1.2;background:var(--bg-inset)}
+  table.mx th.col small{display:block;color:var(--text-2);font-weight:400;font-size:10px;font-family:var(--font-mono)}
+  td.dng{background:var(--bad-bg);color:var(--bad);font-weight:700}
+  td.ben{background:var(--ok-bg);color:var(--ok)}
+  td.na{color:var(--text-3)}
+  td.out-rec{background:var(--bad-bg);color:var(--bad);font-weight:600;text-align:left}
+  td.out-no{background:var(--ok-bg);color:var(--ok);text-align:left}
+  td.out-today{background:var(--accent-soft);color:var(--accent);font-weight:600;text-align:left}
+  table.mx tr.today td{border-top:2px solid var(--accent);font-weight:600}
+  .divider{border-left:1px solid var(--border)}
 </style>
 </head>
 <body>
+<div class="sigbar"></div>
 <div class="topbar">
-  <div class="brand"><svg width="15" height="15" viewBox="0 0 32 32" style="vertical-align:-2px"><rect width="32" height="32" rx="7" fill="#1b2432"/><path d="M5 22 L13 14 L19 18 L27 8" fill="none" stroke="#3aa0aa" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="8" r="2.6" fill="#3aa0aa"/></svg>US Recession Tracker</div>
+  <span class="live"><span class="dot"></span>LIVE · <span id="liveDate">—</span></span>
+  <div class="brand"><svg width="16" height="16" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#161616"/><path d="M5 22 L13 14 L19 18 L27 8" fill="none" stroke="#0F62FE" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="8" r="2.6" fill="#0F62FE"/></svg>US Recession Tracker</div>
   <nav class="topnav">
     <a href="index.html">Overview</a>
-    <a class="active" href="explore.html">Explore the interactive model</a>
+    <a class="active" href="explore.html">Explore</a>
   </nav>
+  <span class="datachip">FRED · NY Fed ACM</span>
 </div>
 <div class="wrap">
   <h1>Explore the interactive model</h1>
@@ -136,8 +174,7 @@
     <!-- LEFT: headline probability gauge -->
     <div class="card gauge-wrap">
       <h2>Recession probability (12 months)</h2>
-      <svg id="gauge" viewBox="0 0 240 150" aria-label="probability gauge"></svg>
-      <div class="gauge-num" id="gaugeNum"></div>
+      <div class="gwrap" id="gauge"></div>
       <div class="gauge-lbl" id="gaugeLbl"></div>
     </div>
 
@@ -149,7 +186,7 @@
         <b>Term-premium check.</b> When the term premium is unusually low (even negative), a given
         inversion <i>overstates</i> recession odds — the leading explanation for the 2022–24 false
         alarm. Today it is near normal, so the curve reads as a clean signal
-        (<a href="two_clock.html" style="color:#2563eb;text-decoration:none">see the trust check</a>).
+        (<a href="index.html" style="color:var(--accent);text-decoration:none">see the trust check</a>).
       </p>
       <h2>Fragility signals (values vs judgment-call thresholds)</h2>
       <div class="lights" id="lights"></div>
@@ -182,18 +219,19 @@
     <h3 style="margin-top:14px">Ranking the three curve measures</h3>
     <div id="scorecard"></div>
 
-    <div class="lab-grid">
-      <div>
-        <h3>The yield curve — drag the short end up (Fed tightening) or the long end down</h3>
-        <svg id="curveSvg" viewBox="0 0 520 220" aria-label="yield curve"></svg>
-        <div id="yieldSliders"></div>
-        <div class="spreadbox" id="spreadbox"></div>
-      </div>
-      <div>
-        <h3>Scenario probability</h3>
-        <svg id="labGauge" viewBox="0 0 240 150" aria-label="scenario gauge"></svg>
-        <div class="lab-gauge-num" id="labGaugeNum"></div>
-        <div id="labBanner" class="banner" style="margin-top:12px"></div>
+    <div class="workbench">
+      <div class="wb-head">Scenario workbench — drag the short end up (Fed tightening) or the long end down</div>
+      <div class="wb-body">
+        <div class="wb-left">
+          <svg id="curveSvg" viewBox="0 0 520 220" aria-label="yield curve"></svg>
+          <div id="yieldSliders"></div>
+          <div class="spreadbox" id="spreadbox"></div>
+        </div>
+        <div class="wb-right">
+          <div class="eyebrow">Scenario probability</div>
+          <div class="gwrap" id="labGauge"></div>
+          <div id="labBanner" class="banner" style="margin-top:14px;width:100%"></div>
+        </div>
       </div>
     </div>
 
@@ -230,7 +268,7 @@
     term premium is unusually low (even negative), a given inversion <i>overstates</i> recession
     odds relative to the history the model was trained on — so the raw curve signal should be read
     conditioned on the term premium (see the
-    <a href="two_clock.html" style="color:#2563eb;text-decoration:none">term-premium trust check</a>).
+    <a href="index.html" style="color:var(--accent);text-decoration:none">term-premium trust check</a>).
     The fragility signals and the conditions matrix below are <b>supporting real-economy context</b>
     — the 2007-vs-2023 leverage contrast — not the headline. Thresholds shown are documented judgment
     calls, not fitted parameters. The two lines on the chart are the point: the rosy <i>fitted</i>
@@ -243,32 +281,37 @@
 const DATA = __DASHBOARD_DATA__;
 
 /* ---------- header ---------- */
+document.getElementById('liveDate').textContent = (DATA.as_of_daily || DATA.as_of || 'n/a');
 document.getElementById('asof').textContent =
-  'As of ' + DATA.as_of + ' · headline performance: real-time AUC ' + DATA.auc.realtime +
-  ' over ' + DATA.auc.onsets + ' recession onsets (' + DATA.auc.rt_start + '–' + DATA.auc.rt_end +
-  ')  ·  in-sample AUC ' + DATA.auc.insample + ' for contrast';
+  'As of ' + (DATA.as_of_daily || DATA.as_of) + ' (live daily curve) · headline performance: real-time AUC ' +
+  DATA.auc.realtime + ' over ' + DATA.auc.onsets + ' recession onsets (' + DATA.auc.rt_start + '–' +
+  DATA.auc.rt_end + ')  ·  in-sample AUC ' + DATA.auc.insample + ' for contrast';
 
-/* ---------- gauge (semicircle) ---------- */
+/* ---------- clean semicircle gauge (shared shape, no needle) ---------- */
+function signalGauge(val, threshold, display){
+  const cx=110, cy=104, r=82, sw=13;
+  const disp = display!=null ? display : val;
+  const v = Math.max(0, Math.min(100, val));
+  const A=a=>[cx+r*Math.cos(a), cy-r*Math.sin(a)];
+  const ang=x=>Math.PI*(1 - Math.max(0,Math.min(100,x))/100);
+  const arc=(a0,a1)=>{const[x0,y0]=A(a0),[x1,y1]=A(a1);const lg=(a0-a1)>Math.PI?1:0;
+    return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${lg} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;};
+  const col = val<25 ? 'var(--ok)' : val<50 ? 'var(--warn)' : 'var(--bad)';
+  const ta=ang(threshold), ri=r-sw/2-3, ro=r+sw/2+3;
+  const nx0=cx+ri*Math.cos(ta), ny0=cy-ri*Math.sin(ta), nx1=cx+ro*Math.cos(ta), ny1=cy-ro*Math.sin(ta);
+  return `<svg viewBox="0 0 220 132" role="img" aria-label="${disp}% (fires at ${threshold}%)">
+    <path d="${arc(Math.PI,0)}" fill="none" stroke="var(--track)" stroke-width="${sw}" stroke-linecap="butt"/>
+    <path d="${arc(Math.PI,ang(v))}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="butt"/>
+    <line x1="${nx0.toFixed(1)}" y1="${ny0.toFixed(1)}" x2="${nx1.toFixed(1)}" y2="${ny1.toFixed(1)}" stroke="var(--text-3)" stroke-width="2"/>
+    <text x="110" y="97" text-anchor="middle" font-size="36" font-weight="600" fill="${col}" style="font-variant-numeric:tabular-nums">${disp}%</text>
+    <text x="110" y="120" text-anchor="middle" font-size="11" fill="var(--text-3)">FIRES ≥ ${threshold}%</text>
+  </svg>`;
+}
+
+/* ---------- headline probability gauge ---------- */
 (function(){
   const p = DATA.gauge.probability;
-  const cx=120, cy=130, r=95;
-  const col = p<25?'var(--green)': p<50?'var(--amber)':'var(--red)';
-  const ang = Math.PI*(1 - p/100);                 // 180deg (0%) -> 0deg (100%)
-  const pol = a => [cx + r*Math.cos(a), cy - r*Math.sin(a)];
-  const arc = (a0,a1,color,w)=>{
-    const [x0,y0]=pol(a0), [x1,y1]=pol(a1);
-    const large = (a0-a1) > Math.PI ? 1 : 0;
-    return `<path d="M${x0} ${y0} A${r} ${r} 0 ${large} 1 ${x1} ${y1}" fill="none" stroke="${color}" stroke-width="${w}" stroke-linecap="round"/>`;
-  };
-  const [nx,ny]=pol(ang);
-  let svg = arc(Math.PI,0,'#e7eaf1',16) + arc(Math.PI,ang,col,16);
-  svg += `<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="3"/>`;
-  svg += `<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/>`;
-  svg += `<text x="20" y="145" font-size="11" fill="var(--muted)">0%</text>`;
-  svg += `<text x="205" y="145" font-size="11" fill="var(--muted)">100%</text>`;
-  document.getElementById('gauge').innerHTML = svg;
-  document.getElementById('gaugeNum').textContent = p + '%';
-  document.getElementById('gaugeNum').style.color = col;
+  document.getElementById('gauge').innerHTML = signalGauge(p, 30);
   document.getElementById('gaugeLbl').textContent = DATA.gauge.label;
 })();
 
@@ -417,24 +460,24 @@ document.getElementById('asof').textContent =
       <input type="range" id="sl_${k}" min="${f.min}" max="${f.max}" step="${step}" value="${f.value}"></div>`;
   }).join('');
 
-  /* wire every slider to recompute */
-  document.querySelectorAll('#yieldSliders input, #fragSliders input').forEach(i=>i.oninput=recompute);
+  /* accent-fill painter for the custom slider track (webkit gradient) */
+  function paintFill(el){
+    const mn=parseFloat(el.min), mx=parseFloat(el.max);
+    const pct=Math.max(0,Math.min(100,((parseFloat(el.value)-mn)/(mx-mn))*100));
+    el.style.setProperty('--pct', pct.toFixed(1)+'%');
+  }
+  /* wire every slider to recompute (and repaint its fill) */
+  document.querySelectorAll('#yieldSliders input, #fragSliders input').forEach(i=>{
+    paintFill(i);
+    i.oninput=()=>{ paintFill(i); recompute(); };
+  });
 
   const val = id => parseFloat(document.getElementById('sl_'+id).value);
 
-  /* ---- gauge drawer (shared shape with the headline gauge) ---- */
+  /* ---- lab gauge: the same clean component as the headline gauge ---- */
   function drawGauge(p){
-    const cx=120,cy=130,r=95;
-    const col=p<25?'var(--green)':p<50?'var(--amber)':'var(--red)';
-    const ang=Math.PI*(1-p/100), pol=a=>[cx+r*Math.cos(a),cy-r*Math.sin(a)];
-    const arc=(a0,a1,c,w)=>{const[x0,y0]=pol(a0),[x1,y1]=pol(a1);const lg=(a0-a1)>Math.PI?1:0;
-      return `<path d="M${x0} ${y0} A${r} ${r} 0 ${lg} 1 ${x1} ${y1}" fill="none" stroke="${c}" stroke-width="16" stroke-linecap="round"/>`;};
-    const[nx,ny]=pol(ang);
-    document.getElementById('labGauge').innerHTML =
-      arc(Math.PI,0,'#e7eaf1',16)+arc(Math.PI,ang,col,16)
-      +`<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="3"/>`
-      +`<circle cx="${cx}" cy="${cy}" r="5" fill="${col}"/>`;
-    const n=document.getElementById('labGaugeNum'); n.textContent=p.toFixed(1)+'%'; n.style.color=col;
+    const disp = Number.isInteger(p) ? p : Math.round(p*10)/10;
+    document.getElementById('labGauge').innerHTML = signalGauge(p, 30, disp);
   }
 
   /* ---- yield-curve drawing (yield vs maturity) ---- */

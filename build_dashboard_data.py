@@ -335,6 +335,7 @@ config_out = {"thresholds": {k: {"value": t["value"], "dir": t["dir"], "label": 
 plot_dates = list(s_all.index)
 data = {
     "as_of": latest_date.strftime("%Y-%m"),
+    "as_of_daily": (LIVE.get("as_of") if LIVE else None),
     "gauge": {"probability": (int(round(gauge_prob)) if float(gauge_prob).is_integer()
                               else round(gauge_prob, 1)), "label": gauge_label},
     "character": {"short": short, "full": full, "class": cls},

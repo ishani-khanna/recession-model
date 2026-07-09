@@ -11,90 +11,111 @@
 <meta name="description" content="A live US recession indicator: a three-signal rule (yield-curve probability + credit + term-premium trust check) read from public FRED and NY Fed data. Updates weekly.">
 <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAzMiAzMic+PHJlY3Qgd2lkdGg9JzMyJyBoZWlnaHQ9JzMyJyByeD0nNycgZmlsbD0nIzFiMjQzMicvPjxwYXRoIGQ9J001IDIyIEwxMyAxNCBMMTkgMTggTDI3IDgnIGZpbGw9J25vbmUnIHN0cm9rZT0nIzNhYTBhYScgc3Ryb2tlLXdpZHRoPScyLjYnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcgc3Ryb2tlLWxpbmVqb2luPSdyb3VuZCcvPjxjaXJjbGUgY3g9JzI3JyBjeT0nOCcgcj0nMi42JyBmaWxsPScjM2FhMGFhJy8+PC9zdmc+">
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
   :root{
-    --ink:#1b2432; --ink2:#3a4658; --muted:#6b7688; --faint:#9aa4b2;
-    --line:#e7eaef; --line2:#eef1f5; --bg:#ffffff; --panel:#f8f9fb; --panel2:#f2f4f8;
-    --accent:#2b3a67; --accent-soft:#eef1f8;
-    --green:#15803d; --green-bg:#eaf7ee; --amber:#b45309; --amber-bg:#fdf3e6;
-    --red:#b91c1c; --red-bg:#fdecec; --teal:#0e7c86; --band:#e3e7ee;
-    --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.05);
+    --font-sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --bg-app:#FAFBFC; --bg-panel:#FFFFFF; --bg-inset:#F2F4F8; --bg-hover:#F7F9FC;
+    --border:#DDE1E6; --border-soft:#EDEFF2;
+    --text:#161616; --text-2:#697077; --text-3:#8D9299;
+    --accent:#0F62FE; --accent-soft:#EDF3FF;
+    --ok:#198038; --ok-bg:#DEFBE6; --warn:#B28600; --warn-bg:#FCF4D6; --bad:#DA1E28; --bad-bg:#FFF1F1;
+    --r-sm:4px; --r-md:6px; --r-lg:8px;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s7:32px;
+    /* aliases so existing chart/gauge/table code re-colors from these tokens */
+    --ink:var(--text); --ink2:var(--text-2); --muted:var(--text-2); --faint:var(--text-3);
+    --line:var(--border); --line2:var(--border-soft); --panel:var(--bg-inset); --panel2:var(--bg-app);
+    --green:var(--ok); --green-bg:var(--ok-bg); --amber:var(--warn); --amber-bg:var(--warn-bg);
+    --red:var(--bad); --red-bg:var(--bad-bg); --teal:var(--accent); --band:#E2E6EC; --track:var(--bg-inset);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--panel2);color:var(--ink);
-       font:15px/1.55 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;text-rendering:optimizeLegibility}
-  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
-  .page{max-width:1060px;margin:0 auto;padding:0 20px 64px}
-  /* header shell */
-  header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:16px 0 14px;border-bottom:1px solid var(--line)}
-  .brand{font-weight:700;font-size:16px;letter-spacing:-.01em;color:var(--accent)}
-  .brand .dot{color:var(--teal)}
-  nav{display:flex;gap:4px;margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:3px}
-  nav a{font-size:13px;text-decoration:none;color:var(--muted);padding:5px 11px;border-radius:7px}
-  nav a.active{background:#fff;color:var(--accent);font-weight:600;box-shadow:var(--shadow)}
-  nav a:hover:not(.active){color:var(--ink)}
-  .meta{width:100%;color:var(--faint);font-size:12px;margin-top:8px}
+  body{margin:0;background:var(--bg-app);color:var(--text);
+       font:15px/1.55 var(--font-sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .num,.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+  .sigbar{height:3px;background:var(--accent)}
+  .page{max-width:1060px;margin:0 auto;padding:0 20px 56px}
+  /* header — terminal status strip */
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 0 12px;border-bottom:1px solid var(--border)}
+  .live{font-family:var(--font-mono);font-size:11.5px;font-weight:500;letter-spacing:.03em;color:var(--text-2);display:flex;align-items:center;gap:7px}
+  .live .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg)}
+  .brand{font-weight:600;font-size:15px;letter-spacing:-.01em;color:var(--text);display:flex;align-items:center;gap:7px}
+  nav{display:flex;gap:2px;margin-left:auto;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-sm);padding:2px}
+  nav a{font-family:var(--font-mono);font-size:12px;text-decoration:none;color:var(--text-2);padding:5px 12px;border-radius:3px;letter-spacing:.02em}
+  nav a.active{background:var(--accent);color:#fff;font-weight:500}
+  nav a:hover:not(.active){color:var(--text);background:var(--bg-inset)}
+  .datachip{font-family:var(--font-mono);font-size:11px;color:var(--text-2);background:var(--bg-inset);
+       border:1px solid var(--border);border-radius:3px;padding:4px 9px;letter-spacing:.02em}
+  .meta{width:100%;font-family:var(--font-mono);color:var(--text-3);font-size:11.5px;margin-top:8px;letter-spacing:.02em}
   /* hero */
-  .hero{margin:22px 0 8px;border-radius:16px;padding:20px 22px;border:1px solid;box-shadow:var(--shadow)}
-  .hero{background:#fff;border-left-width:4px}
-  .hero.clear{background:#fbfdfb;border-color:var(--line);border-left-color:var(--green)}
-  .hero.fire{background:#fefafa;border-color:var(--line);border-left-color:var(--red)}
-  .hero .label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
-  .hero .verdict{font-size:27px;font-weight:750;letter-spacing:-.02em;margin:2px 0 2px}
-  .hero .verdict .ok{color:var(--green)} .hero .verdict .no{color:var(--red)}
-  .hero .cond{font-size:14px;color:var(--ink2)}
-  .hero .plain{font-size:13.5px;color:var(--ink2);margin-top:8px;padding-top:8px;border-top:1px dashed #d7e2da}
+  .hero{margin:20px 0 8px;border-radius:var(--r-md);padding:18px 20px;border:1px solid var(--border);border-left-width:3px;background:var(--bg-panel)}
+  .hero.clear{border-left-color:var(--ok)}
+  .hero.fire{border-left-color:var(--bad)}
+  .hero .label{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);font-weight:500}
+  .hero .verdict{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:3px 0}
+  .hero .verdict .ok{color:var(--ok)} .hero .verdict .no{color:var(--bad)}
+  .hero .cond{font-size:14px;color:var(--text-2)}
+  .hero .plain{font-size:13.5px;color:var(--text-2);margin-top:10px;padding-top:10px;border-top:1px solid var(--border-soft)}
   /* sections */
-  section{margin-top:30px}
+  section{margin-top:28px}
   .h{display:flex;align-items:baseline;gap:10px;margin:0 0 12px}
-  .h h2{font-size:15px;font-weight:700;letter-spacing:-.01em;margin:0;color:var(--ink)}
-  .h .tag{font-size:11.5px;color:var(--faint)}
+  .h h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0;color:var(--text)}
+  .h .tag{font-family:var(--font-mono);font-size:11px;color:var(--text-3);letter-spacing:.02em}
   /* signal cards */
-  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s3)}
   @media(max-width:820px){.cards{grid-template-columns:1fr}}
-  .sig{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);
+  .sig{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-md);padding:var(--s4);
        display:flex;flex-direction:column;align-items:center;text-align:center}
-  .sig .no{align-self:flex-start;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
-  .sig .nm{font-weight:700;font-size:15.5px;margin-top:1px}
-  .sig .subq{color:var(--muted);font-size:12.5px;margin-top:2px;min-height:34px}
-  .sig .gwrap{width:190px;max-width:100%;margin:2px 0}
-  .sig .big{font-size:34px;font-weight:750;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
-  .sig .model{color:var(--muted);font-size:11.5px;margin-top:1px}
-  .sig .thr{font-size:12px;color:var(--ink2);margin-top:8px}
-  .sig .xtra{color:var(--faint);font-size:11px;margin-top:5px;line-height:1.4}
-  .pill{display:inline-block;padding:3px 11px;border-radius:999px;font-size:12px;font-weight:600;margin-top:9px;border:1px solid}
-  .p-red{background:var(--red-bg);border-color:#f3c9c9;color:var(--red)}
-  .p-amber{background:var(--amber-bg);border-color:#f4dcb8;color:var(--amber)}
-  .p-green{background:var(--green-bg);border-color:#cfe8d6;color:var(--green)}
-  .ruleNote{color:var(--muted);font-size:12.5px;margin-top:14px;line-height:1.55}
-  /* tables */
-  .tcard{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
-  table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
-  th,td{padding:9px 14px;text-align:right;border-bottom:1px solid var(--line2)}
+  .sig .no{align-self:stretch;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);
+       padding-bottom:var(--s2);margin-bottom:var(--s3);border-bottom:1px solid var(--border-soft);text-align:left}
+  .sig .nm{font-weight:600;font-size:15px;letter-spacing:-.01em}
+  .sig .subq{color:var(--text-2);font-size:12.5px;margin-top:var(--s1);min-height:34px}
+  .sig .gwrap{width:196px;max-width:100%;margin:var(--s2) 0}
+  .sig .big{font-family:var(--font-mono);font-size:34px;font-weight:600;letter-spacing:-.01em;line-height:1.05;margin:var(--s5) 0 0}
+  .sig .model{color:var(--text-2);font-size:11.5px;margin-top:6px}
+  .sig .cardfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
+       margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--border-soft)}
+  .sig .foot-cap{font-family:var(--font-mono);font-size:11.5px;color:var(--text-2)}
+  .sig .xtra{color:var(--text-3);font-size:11px;margin-top:var(--s2);line-height:1.4}
+  .pill{display:inline-block;padding:3px 8px;border-radius:3px;font-family:var(--font-mono);font-size:11px;font-weight:500;
+       letter-spacing:.03em;text-transform:uppercase}
+  .p-red{background:var(--bad-bg);color:var(--bad)}
+  .p-amber{background:var(--warn-bg);color:var(--warn)}
+  .p-green{background:var(--ok-bg);color:var(--ok)}
+  .ruleNote{color:var(--text-2);font-size:12.5px;margin-top:14px;line-height:1.55}
+  /* tables — data grid */
+  .tcard{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{padding:9px 14px;text-align:right;border-bottom:1px solid var(--border-soft)}
   th:first-child,td:first-child{text-align:left}
-  thead th{background:var(--panel);color:var(--muted);font-weight:600;font-size:12px;border-bottom:1px solid var(--line)}
+  td{font-family:var(--font-mono)}
+  thead th{background:var(--bg-inset);color:var(--text-2);font-family:var(--font-mono);font-weight:500;font-size:11px;
+       text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
   tbody tr:last-child td{border-bottom:none}
   tr.hl td{background:var(--accent-soft)}
-  td.inv{color:var(--red);font-weight:600}
+  td.inv{color:var(--bad);font-weight:600}
   /* charts */
-  .chartcard{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px 14px 10px}
-  .legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin:6px 4px 0}
-  .legend i{display:inline-block;width:20px;height:0;vertical-align:middle;margin-right:6px}
-  .legend .sw{width:14px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:6px}
-  .note{color:var(--muted);font-size:12.5px;margin:10px 2px 0;line-height:1.55}
+  .chartcard{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 14px 10px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--text-2);font-size:11.5px;margin:8px 4px 0;font-family:var(--font-mono)}
+  .legend i{display:inline-block;width:18px;height:0;vertical-align:middle;margin-right:6px}
+  .legend .sw{width:13px;height:10px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:6px}
+  .note{color:var(--text-2);font-size:12.5px;margin:10px 2px 0;line-height:1.55}
   svg{display:block;width:100%;height:auto}
-  text{fill:var(--ink2)}
-  footer{margin-top:30px;padding-top:14px;border-top:1px solid var(--line);color:var(--faint);font-size:12px}
+  .brand svg{width:16px;height:16px;flex:0 0 auto}
+  text{fill:var(--text-2);font-family:var(--font-mono)}
+  footer{margin-top:28px;padding:12px 0;border-top:1px solid var(--border);color:var(--text-3);font-size:11.5px;font-family:var(--font-mono);letter-spacing:.02em}
 </style>
 </head>
 <body>
+<div class="sigbar"></div>
 <div class="page">
   <header>
-    <div class="brand"><svg width="15" height="15" viewBox="0 0 32 32" style="vertical-align:-2px;margin-right:6px"><rect width="32" height="32" rx="7" fill="#1b2432"/><path d="M5 22 L13 14 L19 18 L27 8" fill="none" stroke="#3aa0aa" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="8" r="2.6" fill="#3aa0aa"/></svg>US Recession Tracker</div>
+    <span class="live"><span class="dot"></span>LIVE · <span id="liveDate">—</span></span>
+    <div class="brand"><svg width="16" height="16" viewBox="0 0 32 32"><rect width="32" height="32" rx="4" fill="#161616"/><path d="M5 22 L13 14 L19 18 L27 8" fill="none" stroke="#0F62FE" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="8" r="2.6" fill="#0F62FE"/></svg>US Recession Tracker</div>
     <nav>
       <a class="active" href="index.html">Overview</a>
-      <a href="explore.html">Explore the interactive model →</a>
+      <a href="explore.html">Explore</a>
     </nav>
+    <span class="datachip">FRED · NY Fed ACM</span>
     <div class="meta" id="meta"></div>
   </header>
 
@@ -161,9 +182,10 @@ const money = n => (n>=0?"+":"")+n;
 const lvlColor = p => p < 25 ? "var(--green)" : (p < 50 ? "var(--amber)" : "var(--red)");
 const pill = met => met ? '<span class="pill p-red">firing</span>' : '<span class="pill p-green">not firing</span>';
 
+document.getElementById("liveDate").textContent = (DATA.as_of_daily || DATA.generated || "n/a");
 document.getElementById("meta").textContent =
-  "As of " + (DATA.as_of_daily||"n/a") + " (daily curve) · monthly panel through " + DATA.monthly_through
-  + " · public data: FRED + NY Fed ACM";
+  "DAILY CURVE " + (DATA.as_of_daily||"n/a") + "  ·  MONTHLY PANEL THROUGH " + DATA.monthly_through
+  + "  ·  PUBLIC DATA · FRED + NY FED ACM";
 
 /* hero */
 (function(){
@@ -177,19 +199,26 @@ document.getElementById("meta").textContent =
   document.getElementById("plain").innerHTML="<b>In plain English:</b> "+DATA.plain_english;
 })();
 
-/* gauge (semicircle, with a subtle threshold tick) */
-function gauge(p, thr){
-  const cx=110,cy=104,r=82,col=lvlColor(p);
-  const A=a=>[cx+r*Math.cos(a),cy-r*Math.sin(a)], ang=Math.PI*(1-Math.min(p,100)/100);
-  const arc=(a0,a1,c,w)=>{const[x0,y0]=A(a0),[x1,y1]=A(a1);const lg=(a0-a1)>Math.PI?1:0;
-    return `<path d="M${x0} ${y0} A${r} ${r} 0 ${lg} 1 ${x1} ${y1}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`;};
-  const[nx,ny]=A(ang); let s=`<svg viewBox="0 0 220 118">`;
-  s+=arc(Math.PI,0,"#eaedf2",13)+arc(Math.PI,ang,col,13);
-  if(thr!=null){const ta=Math.PI*(1-Math.min(thr,100)/100),[tx,ty]=A(ta),[ix,iy]=[cx+(r-11)*Math.cos(ta),cy-(r-11)*Math.sin(ta)];
-    s+=`<line x1="${ix}" y1="${iy}" x2="${tx}" y2="${ty}" stroke="var(--faint)" stroke-width="2"/>`;}
-  s+=`<line x1="${cx}" y1="${cy}" x2="${nx}" y2="${ny}" stroke="${col}" stroke-width="3"/><circle cx="${cx}" cy="${cy}" r="4.5" fill="${col}"/>`;
-  s+=`<text x="20" y="116" font-size="10" fill="var(--faint)">0%</text><text x="200" y="116" font-size="10" fill="var(--faint)" text-anchor="end">100%</text></svg>`;
-  return s;
+/* clean semicircle gauge: thin track, colored progress arc, quiet threshold notch,
+   value centered — no needle, no 0/100 labels crammed onto the arc */
+function gauge(val, threshold, display){
+  const cx=110, cy=104, r=82, sw=13;
+  const disp = display!=null ? display : val;
+  const v = Math.max(0, Math.min(100, val));
+  const A=a=>[cx+r*Math.cos(a), cy-r*Math.sin(a)];
+  const ang=x=>Math.PI*(1 - Math.max(0,Math.min(100,x))/100);
+  const arc=(a0,a1)=>{const[x0,y0]=A(a0),[x1,y1]=A(a1);const lg=(a0-a1)>Math.PI?1:0;
+    return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${lg} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;};
+  const col = lvlColor(val);
+  const ta=ang(threshold), ri=r-sw/2-3, ro=r+sw/2+3;
+  const nx0=cx+ri*Math.cos(ta), ny0=cy-ri*Math.sin(ta), nx1=cx+ro*Math.cos(ta), ny1=cy-ro*Math.sin(ta);
+  return `<svg viewBox="0 0 220 132" role="img" aria-label="${disp}% (fires at ${threshold}%)">
+    <path d="${arc(Math.PI,0)}" fill="none" stroke="var(--track)" stroke-width="${sw}" stroke-linecap="butt"/>
+    <path d="${arc(Math.PI,ang(v))}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="butt"/>
+    <line x1="${nx0.toFixed(1)}" y1="${ny0.toFixed(1)}" x2="${nx1.toFixed(1)}" y2="${ny1.toFixed(1)}" stroke="var(--text-3)" stroke-width="2"/>
+    <text x="110" y="97" text-anchor="middle" font-size="36" font-weight="600" fill="${col}" style="font-variant-numeric:tabular-nums">${disp}%</text>
+    <text x="110" y="120" text-anchor="middle" font-size="11" fill="var(--text-3)">FIRES ≥ ${threshold}%</text>
+  </svg>`;
 }
 
 /* three signal cards */
@@ -197,21 +226,21 @@ function gauge(p, thr){
   document.getElementById("cards").innerHTML = DATA.signals.map(s=>{
     const p = pill(s.met);
     if(s.gauge){
-      return `<div class="sig"><div class="no">Signal ${s.num}</div><div class="nm">${s.name}</div>
+      return `<div class="sig"><div class="no">Signal ${s.num}</div>
+        <div class="nm">${s.name}</div>
         <div class="subq">${s.sub}</div>
         <div class="gwrap">${gauge(s.value, s.num===1?30:15)}</div>
-        <div class="big" style="color:${lvlColor(s.value)}">${s.value}%</div>
         <div class="model">${s.model}</div>
-        <div class="thr">${s.fires_text} ${p}</div>
+        <div class="cardfoot"><span class="foot-cap">${s.fires_text}</span>${p}</div>
         ${s.source_note?`<div class="xtra">${s.source_note}</div>`:""}</div>`;
     }
     const tp=DATA.term_premium, cls=tp.tp_class, pc=cls==="compressed"?"p-red":"p-green";
     return `<div class="sig"><div class="no">Signal ${s.num}</div><div class="nm">${s.name}</div>
       <div class="subq">${s.sub}</div>
-      <div class="big" style="color:${cls==='compressed'?'var(--red)':'var(--teal)'};margin-top:14px">${money(tp.tp_bp)} bp</div>
+      <div class="big" style="color:${cls==='compressed'?'var(--bad)':'var(--accent)'};margin-top:14px">${money(tp.tp_bp)} bp</div>
       <div class="model">${s.model}</div>
-      <span class="pill ${pc}" style="margin-top:6px">${cls} · ~${s.percentile_ord} pctile</span>
-      <div class="thr">${s.fires_text} ${s.met?'<span class="pill p-green">clear</span>':'<span class="pill p-red">veto</span>'}</div>
+      <span class="pill ${pc}" style="margin-top:8px">${cls} · ~${s.percentile_ord} pctile</span>
+      <div class="cardfoot"><span class="foot-cap">${s.fires_text}</span>${s.met?'<span class="pill p-green">clear</span>':'<span class="pill p-red">veto</span>'}</div>
       <div class="xtra">${s.crosscheck}</div></div>`;
   }).join("");
   document.getElementById("ruleNote").innerHTML =
