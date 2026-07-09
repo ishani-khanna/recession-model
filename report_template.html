@@ -69,8 +69,8 @@
        padding-bottom:var(--s2);margin-bottom:var(--s3);border-bottom:1px solid var(--border-soft);text-align:left}
   .sig .nm{font-weight:600;font-size:15px;letter-spacing:-.01em}
   .sig .subq{color:var(--text-2);font-size:12.5px;margin-top:var(--s1);min-height:34px}
-  .sig .gwrap{width:196px;max-width:100%;margin:var(--s2) 0}
-  .sig .big{font-family:var(--font-mono);font-size:34px;font-weight:600;letter-spacing:-.01em;line-height:1.05;margin:var(--s5) 0 0}
+  .sig .gwrap{width:196px;max-width:100%;height:118px;margin:var(--s2) 0;display:flex;align-items:center;justify-content:center}
+  .sig .big{font-family:var(--font-mono);font-size:34px;font-weight:600;letter-spacing:-.01em;line-height:1.05;margin:0;position:relative;top:10px}
   .sig .model{color:var(--text-2);font-size:11.5px;margin-top:6px}
   .sig .cardfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
        margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--border-soft)}
@@ -115,7 +115,6 @@
       <a class="active" href="index.html">Overview</a>
       <a href="explore.html">Explore</a>
     </nav>
-    <span class="datachip">FRED · NY Fed ACM</span>
     <div class="meta" id="meta"></div>
   </header>
 
@@ -237,7 +236,7 @@ function gauge(val, threshold, display){
     const tp=DATA.term_premium, cls=tp.tp_class, pc=cls==="compressed"?"p-red":"p-green";
     return `<div class="sig"><div class="no">Signal ${s.num}</div><div class="nm">${s.name}</div>
       <div class="subq">${s.sub}</div>
-      <div class="big" style="color:${cls==='compressed'?'var(--bad)':'var(--accent)'};margin-top:14px">${money(tp.tp_bp)} bp</div>
+      <div class="gwrap"><div class="big" style="color:${cls==='compressed'?'var(--bad)':'var(--accent)'}">${money(tp.tp_bp)} bp</div></div>
       <div class="model">${s.model}</div>
       <span class="pill ${pc}" style="margin-top:8px">${cls} · ~${s.percentile_ord} pctile</span>
       <div class="cardfoot"><span class="foot-cap">${s.fires_text}</span>${s.met?'<span class="pill p-green">clear</span>':'<span class="pill p-red">veto</span>'}</div>
