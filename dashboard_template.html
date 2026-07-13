@@ -485,7 +485,7 @@ function signalGauge(val, threshold, display, full){
   /* ---- lab gauge: the same clean component as the headline gauge ---- */
   function drawGauge(p){
     const disp = Number.isInteger(p) ? p : Math.round(p*10)/10;
-    document.getElementById('labGauge').innerHTML = signalGauge(p, 30, disp, true);  // explorer: full 0-100 scale
+    document.getElementById('labGauge').innerHTML = signalGauge(p, 30, disp);  // 0 -> 30% trigger, like the signal gauges
   }
 
   /* ---- yield-curve drawing (yield vs maturity) ---- */
