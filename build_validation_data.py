@@ -160,6 +160,26 @@ for _sec in sections:
         _at = 1 if _sec["blocks"] and _sec["blocks"][0]["type"] == "p" else 0  # keep intro on top
         _sec["blocks"].insert(_at, _cards_block)
 
+
+# --- Section 8: same card treatment for the literature list. Convert the two-column
+#     Study | Contribution table into stacked cards — study/author bold, venue in the muted
+#     mono note, contribution left-aligned below (existing text, no wide right-aligned column). ---
+def _table_to_cards(tbl):
+    items = []
+    for r in tbl["rows"]:
+        study = r[0] if r else ""
+        # Rejoin any cells the table parser split on a literal "|" inside the contribution
+        # (e.g. the conditional bar in "P(recession in t+h | spread)").
+        contribution = " | ".join(r[1:]) if len(r) > 1 else ""
+        m = re.match(r"^<strong>(.+?)</strong>[,;]?\s*(.*)$", study)
+        name, source = (m.group(1), (m.group(2) or None)) if m else (study, None)
+        items.append({"name": name, "source": source, "reason": contribution})
+    return {"type": "cards", "items": items}
+
+for _sec in sections:
+    if _sec["title"].startswith("8."):
+        _sec["blocks"] = [(_table_to_cards(b) if b["type"] == "table" else b) for b in _sec["blocks"]]
+
 # Pull the headline numbers straight out of the parsed section-1 OOS table (h = 12 row).
 coef = round(float(probit.fit_spread_model(panel, "10y3m", 12, "probit").coef), 3)
 in_auc = round(float(probit.fit_spread_model(panel, "10y3m", 12, "probit").auc), 3)
