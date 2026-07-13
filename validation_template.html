@@ -73,6 +73,12 @@
   .vsec ul{margin:0 0 var(--s3);padding-left:18px}
   .vsec li{font-size:13.5px;line-height:1.6;color:var(--ink2);margin-bottom:6px}
   .vsec code{font-family:var(--font-mono);font-size:12px;background:var(--bg-inset);border:1px solid var(--border-soft);border-radius:3px;padding:1px 5px}
+  /* section 7 — stacked candidate cards (left-aligned, no horizontal scroll) */
+  .vcards{display:flex;flex-direction:column;gap:var(--s2);margin:0 0 var(--s4)}
+  .vcard{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r-md);padding:var(--s3) var(--s4)}
+  .vc-name{font-size:13.5px;font-weight:600;color:var(--text)}
+  .vc-src{font-family:var(--font-mono);font-size:11.5px;font-weight:400;color:var(--text-3);margin-left:5px}
+  .vc-why{font-size:13px;line-height:1.55;color:var(--ink2);margin-top:4px}
   .tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-md);margin:0 0 var(--s4)}
   table{border-collapse:collapse;width:100%;font-size:12.5px}
   th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--border-soft);white-space:nowrap}
@@ -213,6 +219,8 @@ function miniLine(svgId, hz, seriesByKey, yfmt, ylo, yhi, refY){
     const title = mm ? mm[2] : sec.title;
     const blocks = sec.blocks.map(b=>{
       if(b.type==="p")   return `<p>${b.html}</p>`;
+      if(b.type==="cards")return `<div class="vcards">${b.items.map(it=>
+        `<div class="vcard"><div class="vc-name">${it.name}${it.source?` <span class="vc-src">(${it.source})</span>`:""}</div><div class="vc-why">${it.reason}</div></div>`).join("")}</div>`;
       if(b.type==="list")return `<ul>${b.items.map(i=>`<li>${i}</li>`).join("")}</ul>`;
       if(b.type==="table")return `<div class="tbl-wrap"><table><thead><tr>${
         b.head.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>${

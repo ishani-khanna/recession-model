@@ -123,6 +123,43 @@ with open(md_path) as f:
     md_text = f.read()
 sections = parse_markdown(md_text)
 
+# --- Section 7: replace the wide two-column table with a stack of concise cards. ---
+# Trimmed, one-line reasons (the full analysis stays in the module docstrings / RESEARCH.md).
+SECTION7_CANDIDATES = [
+    ("Term premium as a regressor", None,
+     "Works only as the veto; as a predictor its gain flips sign between samples."),
+    ("Alternative credit spreads", "Baa–10Y, Baa–Aaa, GZ EBP",
+     "Baa–Aa already beats them; the rest add no out-of-sample gain."),
+    ("Fed balance sheet", "growth, /GDP, change",
+     "Reactive, not leading; the Fed expands into weakness."),
+    ("Real house-price growth", "FHFA",
+     "Flatters the overall score but breaks the 2001 call."),
+    ("Corporate credit growth / leverage", "Schularick–Taylor",
+     "Redundant with Baa–Aa; leverage levels are non-stationary artifacts."),
+    ("SLOOS C&I lending standards", None,
+     "Nailed 2001 but blind to 2007; drops the 2007 call to 0%."),
+    ("SLOOS consumer-loan willingness", None,
+     "Higher near-term AUC, but guts the term-spread coefficient; the early edge was a small-sample artifact."),
+    ("Philly Fed current general activity", None,
+     "Not a predictor; ~3× the false alarms, signal and noise are the same swings."),
+    ("Near-term forward spread", "Engstrom–Sharpe",
+     "A quieter edge over 10Y–3M, not a sharper one; adds nothing once the veto exists."),
+    ("Building permits", "Leamer",
+     "Leads housing recessions only; as a 4th condition it turns 7/8 into 6/8."),
+    ("5-year change in the 5Y yield", None,
+     "Rate-shock specialist (1980–81 only); 4–12× the false alarms, flashing since 2023."),
+    ("High-yield OAS", None,
+     "Untestable; FRED's ICE series is truncated."),
+]
+_cards_block = {"type": "cards", "items": [
+    {"name": html.escape(n), "source": (html.escape(s) if s else None), "reason": html.escape(r)}
+    for (n, s, r) in SECTION7_CANDIDATES]}
+for _sec in sections:
+    if _sec["title"].startswith("7."):
+        _sec["blocks"] = [b for b in _sec["blocks"] if b["type"] != "table"]  # drop the wide table
+        _at = 1 if _sec["blocks"] and _sec["blocks"][0]["type"] == "p" else 0  # keep intro on top
+        _sec["blocks"].insert(_at, _cards_block)
+
 # Pull the headline numbers straight out of the parsed section-1 OOS table (h = 12 row).
 coef = round(float(probit.fit_spread_model(panel, "10y3m", 12, "probit").coef), 3)
 in_auc = round(float(probit.fit_spread_model(panel, "10y3m", 12, "probit").auc), 3)
