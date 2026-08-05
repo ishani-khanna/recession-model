@@ -292,7 +292,7 @@ function signalGauge(val, threshold, display, full){
   // full=false (signal gauges): arc runs 0 -> threshold, so it measures distance to the trigger.
   // full=true  (scenario explorer): arc runs 0 -> 100% with a quiet notch at the threshold, so a
   //            built scenario can range across the whole probability space without pinning full.
-  const cx=110, cy=104, r=82, sw=13;
+  const cx=110, cy=104, r=90, sw=13;   // r widened 82->90 so the arc's bottom corners clear the caption ends
   const disp = display!=null ? display : val;
   const A=a=>[cx+r*Math.cos(a), cy-r*Math.sin(a)];
   const arc=(a0,a1)=>{const[x0,y0]=A(a0),[x1,y1]=A(a1);const lg=(a0-a1)>Math.PI?1:0;

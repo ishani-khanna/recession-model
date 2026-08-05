@@ -202,7 +202,7 @@ document.getElementById("meta").textContent =
 /* clean semicircle gauge: thin track, colored progress arc, quiet threshold notch,
    value centered — no needle, no 0/100 labels crammed onto the arc */
 function gauge(val, threshold, display){
-  const cx=110, cy=104, r=82, sw=13;
+  const cx=110, cy=104, r=90, sw=13;   // r widened 82->90 so the arc's bottom corners clear the caption ends
   const disp = display!=null ? display : val;
   // Arc measures distance to the firing threshold: end of the sweep == the trigger, not 100%.
   const frac = Math.max(0, Math.min(1, val/threshold));   // clamped so it never overshoots
