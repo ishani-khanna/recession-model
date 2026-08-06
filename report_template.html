@@ -229,7 +229,6 @@ function gauge(val, threshold, display){
         <div class="nm">${s.name}</div>
         <div class="subq">${s.sub}</div>
         <div class="gwrap">${gauge(s.value, s.num===1?30:15)}</div>
-        <div class="model">${s.model}</div>
         <div class="cardfoot"><span class="foot-cap">${s.fires_text}</span>${p}</div>
         ${s.source_note?`<div class="xtra">${s.source_note}</div>`:""}</div>`;
     }
