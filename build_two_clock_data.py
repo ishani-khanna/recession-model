@@ -130,15 +130,15 @@ data = {
              "thresholds": {"flag": FLAG_FIRE, "aug": AUG_FIRE, "tp_bp": TP_GATE_BP}},
     "plain_english": plain,
     "signals": [
-        {"key": "flag", "num": 1, "name": "12-month outlook", "model": "flagship — term spread",
+        {"key": "flag", "num": 1, "name": "Yield Curve Tracker (12-month outlook)", "model": "flagship — term spread",
          "sub": "is a recession building over the next year?", "value": clocks["flag12"], "unit": "%",
          "fires_text": "fires ≥ 30%", "met": s1_met, "gauge": True},
-        {"key": "aug", "num": 2, "name": "3-month watch", "model": "augmented — term + Baa−Aa credit",
+        {"key": "aug", "num": 2, "name": "Credit Spread (3-month watch)", "model": "augmented — term + Baa−Aa credit",
          "sub": "is one arriving in the next quarter?", "value": clocks["aug3"], "unit": "%",
          "fires_text": "fires ≥ 15%", "met": s2_met, "gauge": True,
          "source_note": ("Aa leg: Moody's DataBuffet (IRAACM.IUSA)" if db_on
                          else "Aa leg: FRED Aaa substitute (DataBuffet off)")},
-        {"key": "tp", "num": 3, "name": "Trust check", "model": "ACM 10Y term premium",
+        {"key": "tp", "num": 3, "name": "Term Premium", "model": "ACM 10Y term premium",
          "sub": "is the curve's signal trustworthy, or distorted by a compressed premium?",
          "value_bp": tp_bp, "fires_text": "clear ≥ 50 bp · vetoes if < 50 bp", "met": s3_met,
          "gauge": False, "tp_class": tp_cls, "percentile": tp_pct, "percentile_ord": _ord(tp_pct),
