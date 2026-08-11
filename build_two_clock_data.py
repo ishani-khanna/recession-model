@@ -20,6 +20,7 @@ import pandas as pd
 from scipy.stats import norm
 
 import credit_fallback  # noqa: F401  WIRING: Signal-2 Baa−Aa -> FRED Aaa substitute when DataBuffet off
+import acm_daily        # WIRING: Signal-3 trust check reads the live DAILY ACM value (not the lagging monthly)
 from yield_curve.data import build_dataset, config, acm, conventions
 from yield_curve.data.fred_client import FredClient
 from yield_curve.models import probit
@@ -71,12 +72,19 @@ db_on = _databuffet_on()
 # Signal 3: ACM term premium (primary), with a graceful fallback to Kim-Wright.
 try:
     a = acm.acm_reading()
-    tp_bp, tp_pct, tp_cls = a["value_bp"], a["percentile"], a["class"]
     tp_source = "ACM"
     tp_monthly = a["monthly"]
     tp_lo_2223, tp_lo_date = a["low_2022_23"], a["low_2022_23_date"]
     tp_comp_2021 = a["compressed_2020_21"]
-    tp_date = a["date"]
+    # WIRING (acm_daily): the CURRENT trust-check value reads the live DAILY ACM series,
+    # so it tracks the daily curve and matches the paper (which reads ACM daily) instead
+    # of lagging up to a month on the monthly sheet. Percentile is still measured against
+    # monthly history; the history chart and 2020-21/2022-23 context use tp_monthly above.
+    tp_cur_pp, tp_asof = acm_daily.current_daily()
+    tp_bp = round(tp_cur_pp * 100)
+    tp_pct = round(float((tp_monthly < tp_cur_pp).mean()) * 100)
+    tp_cls = "compressed" if tp_cur_pp < 0.50 else ("elevated" if tp_pct > 75 else "near normal")
+    tp_date = tp_asof.date().isoformat()
 except Exception:
     tp_bp, tp_pct, tp_cls = round(kw["tp_current"] * 100), kw["tp_percentile"], kw["tp_class"]
     tp_source = "Kim-Wright"
