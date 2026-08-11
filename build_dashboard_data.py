@@ -70,10 +70,10 @@ except Exception:
 if LIVE and LIVE.get("flagship_prob") is not None:
     gauge_prob = float(LIVE["flagship_prob"])          # daily bond-equivalent reading (matches Overview)
     gauge_asof = LIVE.get("as_of") or latest_date.strftime("%Y-%m-%d")
-    gauge_label = f"current 12-month probability — live daily curve, as of {gauge_asof}"
+    gauge_label = f"12-month probability from the 10-year minus 3-month Treasury spread, live daily curve, as of {gauge_asof}"
 else:
     gauge_prob = probit_predict(res_full, s_all.loc[latest_date]) * 100
-    gauge_label = f"current model probability (all data through {latest_date.strftime('%b %Y')})"
+    gauge_label = f"12-month probability from the 10-year minus 3-month Treasury spread (all data through {latest_date.strftime('%b %Y')})"
 
 # ---- REAL-TIME line: expanding-window walk-forward -------------------------
 realtime = {}

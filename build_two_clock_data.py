@@ -130,7 +130,7 @@ data = {
              "thresholds": {"flag": FLAG_FIRE, "aug": AUG_FIRE, "tp_bp": TP_GATE_BP}},
     "plain_english": plain,
     "signals": [
-        {"key": "flag", "num": 1, "name": "Yield Curve Tracker (12-month outlook)", "model": "flagship — term spread",
+        {"key": "flag", "num": 1, "name": "Treasury Yield Curve (12-month outlook)", "model": "flagship — term spread",
          "sub": "is a recession building over the next year?", "value": clocks["flag12"], "unit": "%",
          "fires_text": "fires ≥ 30%", "met": s1_met, "gauge": True},
         {"key": "aug", "num": 2, "name": "Credit Spread (3-month watch)", "model": "augmented — term + Baa−Aa credit",
